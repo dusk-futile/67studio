@@ -1,428 +1,340 @@
 'use client';
 
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   ArrowLeft,
-  Play,
-  Pause,
-  RotateCcw,
-  RotateCw,
-  Volume2,
-  VolumeX,
+  Server,
+  Film,
+  Tv,
   Maximize,
   Minimize,
-  MessageSquare,
-  Tv,
+  RefreshCw,
+  ExternalLink,
+  ChevronDown,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import { getTmdbTrailerKey } from '../services/mediaService';
+
+type ServerType = 'server1' | 'server2' | 'server3' | 'trailer' | 'direct';
 
 export default function VideoPlayer() {
   const { activePlayingItem, stopMedia } = useApp();
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  const [isPlaying, setIsPlaying] = useState(true);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(0);
-  const [volume, setVolume] = useState(1);
-  const [isMuted, setIsMuted] = useState(false);
+  const [activeServer, setActiveServer] = useState<ServerType>('server1');
+  const [season, setSeason] = useState(1);
+  const [episode, setEpisode] = useState(1);
+  const [youtubeKey, setYoutubeKey] = useState<string | undefined>(undefined);
+  const [isLoading, setIsLoading] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [areControlsVisible, setAreControlsVisible] = useState(true);
-  const [playbackSpeed, setPlaybackSpeed] = useState(1);
-  const [showSpeedMenu, setShowSpeedMenu] = useState(false);
-  const [showAudioMenu, setShowAudioMenu] = useState(false);
-  const [selectedAudio, setSelectedAudio] = useState('English [Original] (5.1)');
-  const [selectedSubtitle, setSelectedSubtitle] = useState('English [CC]');
-  const [useYouTubeTrailer, setUseYouTubeTrailer] = useState(false);
+  const [showServerMenu, setShowServerMenu] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
 
-  const hideTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
+  // Initialize player state when media changes
   useEffect(() => {
-    if (activePlayingItem?.youtubeKey) {
-      setUseYouTubeTrailer(true);
+    if (!activePlayingItem) return;
+
+    setIsLoading(true);
+    setActiveServer('server1');
+    setSeason(1);
+    setEpisode(1);
+
+    if (activePlayingItem.youtubeKey) {
+      setYoutubeKey(activePlayingItem.youtubeKey);
+    } else if (activePlayingItem.tmdbId) {
+      getTmdbTrailerKey(activePlayingItem.tmdbId, activePlayingItem.type).then((key) => {
+        if (key) setYoutubeKey(key);
+      });
     } else {
-      setUseYouTubeTrailer(false);
+      setYoutubeKey(undefined);
     }
   }, [activePlayingItem]);
 
-  // Auto-hide controls on mouse idle
-  const handleMouseMove = () => {
-    setAreControlsVisible(true);
-    if (hideTimeoutRef.current) {
-      clearTimeout(hideTimeoutRef.current);
-    }
-    hideTimeoutRef.current = setTimeout(() => {
-      if (isPlaying) {
-        setAreControlsVisible(false);
-        setShowSpeedMenu(false);
-        setShowAudioMenu(false);
-      }
-    }, 3000);
-  };
-
+  // Handle keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!activePlayingItem) return;
-      if (e.key === ' ' || e.key === 'k') {
-        e.preventDefault();
-        togglePlay();
-      } else if (e.key === 'Escape') {
+      if (e.key === 'Escape') {
         stopMedia();
       } else if (e.key === 'f') {
         toggleFullscreen();
-      } else if (e.key === 'm') {
-        toggleMute();
-      } else if (e.key === 'ArrowRight') {
-        handleSeekForward();
-      } else if (e.key === 'ArrowLeft') {
-        handleSeekBackward();
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [activePlayingItem, isPlaying, isMuted, volume]);
+  }, [activePlayingItem]);
 
   if (!activePlayingItem) return null;
 
-  const togglePlay = () => {
-    if (!videoRef.current) return;
-    if (isPlaying) {
-      videoRef.current.pause();
-      setIsPlaying(false);
-    } else {
-      videoRef.current.play();
-      setIsPlaying(true);
-    }
-  };
-
-  const handleTimeUpdate = () => {
-    if (videoRef.current) {
-      setCurrentTime(videoRef.current.currentTime);
-      setDuration(videoRef.current.duration || 0);
-    }
-  };
-
-  const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const target = Number(e.target.value);
-    if (videoRef.current) {
-      videoRef.current.currentTime = target;
-      setCurrentTime(target);
-    }
-  };
-
-  const handleSeekBackward = () => {
-    if (videoRef.current) {
-      videoRef.current.currentTime = Math.max(0, videoRef.current.currentTime - 10);
-    }
-  };
-
-  const handleSeekForward = () => {
-    if (videoRef.current) {
-      videoRef.current.currentTime = Math.min(duration, videoRef.current.currentTime + 10);
-    }
-  };
-
-  const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = Number(e.target.value);
-    setVolume(val);
-    if (videoRef.current) {
-      videoRef.current.volume = val;
-      videoRef.current.muted = val === 0;
-      setIsMuted(val === 0);
-    }
-  };
-
-  const toggleMute = () => {
-    if (!videoRef.current) return;
-    const newMute = !isMuted;
-    videoRef.current.muted = newMute;
-    setIsMuted(newMute);
-    if (!newMute && volume === 0) {
-      setVolume(0.5);
-      videoRef.current.volume = 0.5;
-    }
-  };
+  const tmdbId = activePlayingItem.tmdbId;
+  const isTv = activePlayingItem.type === 'tv';
 
   const toggleFullscreen = () => {
     if (!containerRef.current) return;
     if (!document.fullscreenElement) {
-      containerRef.current.requestFullscreen().catch((err) => console.error(err));
+      containerRef.current.requestFullscreen().catch(() => {});
       setIsFullscreen(true);
     } else {
-      document.exitFullscreen().catch((err) => console.error(err));
+      document.exitFullscreen().catch(() => {});
       setIsFullscreen(false);
     }
   };
 
-  const changeSpeed = (speed: number) => {
-    setPlaybackSpeed(speed);
-    if (videoRef.current) {
-      videoRef.current.playbackRate = speed;
+  // Determine streaming URL based on active server
+  const getStreamUrl = (): string => {
+    if (!tmdbId) {
+      return activePlayingItem.videoUrl || activePlayingItem.trailerUrl;
     }
-    setShowSpeedMenu(false);
+
+    switch (activeServer) {
+      case 'server1':
+        // VidLink Pro (Fast HD Streaming)
+        return isTv
+          ? `https://vidlink.pro/tv/${tmdbId}/${season}/${episode}`
+          : `https://vidlink.pro/movie/${tmdbId}`;
+
+      case 'server2':
+        // AutoEmbed (Multi-Source High Definition)
+        return isTv
+          ? `https://autoembed.co/tv/tmdb/${tmdbId}/${season}/${episode}`
+          : `https://autoembed.co/movie/tmdb/${tmdbId}`;
+
+      case 'server3':
+        // 2Embed (Alternative Global CDN)
+        return isTv
+          ? `https://www.2embed.cc/embedtv/${tmdbId}&s=${season}&e=${episode}`
+          : `https://www.2embed.cc/embed/${tmdbId}`;
+
+      case 'trailer':
+        if (youtubeKey) {
+          return `https://www.youtube-nocookie.com/embed/${youtubeKey}?autoplay=1&mute=0&controls=1&rel=0&modestbranding=1`;
+        }
+        return activePlayingItem.trailerUrl;
+
+      case 'direct':
+      default:
+        return activePlayingItem.videoUrl || activePlayingItem.trailerUrl;
+    }
   };
 
-  const formatTime = (seconds: number) => {
-    if (isNaN(seconds)) return '00:00';
-    const hrs = Math.floor(seconds / 3600);
-    const mins = Math.floor((seconds % 3600) / 60);
-    const secs = Math.floor(seconds % 60);
+  const streamUrl = getStreamUrl();
+  const isEmbedServer = activeServer === 'server1' || activeServer === 'server2' || activeServer === 'server3' || (activeServer === 'trailer' && !!youtubeKey);
 
-    if (hrs > 0) {
-      return `${hrs}:${mins < 10 ? '0' : ''}${mins}:${secs < 10 ? '0' : ''}${secs}`;
-    }
-    return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
-  };
-
-  const progressPercentage = duration ? (currentTime / duration) * 100 : 0;
+  const serverOptions: Array<{ id: ServerType; label: string; tag: string }> = [
+    { id: 'server1', label: 'Server 1 (VidLink HD)', tag: 'Ultra HD' },
+    { id: 'server2', label: 'Server 2 (AutoEmbed)', tag: 'Multi-Source' },
+    { id: 'server3', label: 'Server 3 (2Embed)', tag: 'Global CDN' },
+    { id: 'trailer', label: 'Official 4K Trailer', tag: 'YouTube' },
+    { id: 'direct', label: 'Direct Cinema Stream', tag: '67studio' },
+  ];
 
   return (
     <div
       ref={containerRef}
-      onMouseMove={handleMouseMove}
-      className="fixed inset-0 z-50 bg-black flex items-center justify-center select-none overflow-hidden cursor-auto"
-      style={{ cursor: areControlsVisible ? 'default' : 'none' }}
+      className="fixed inset-0 z-50 bg-black flex flex-col justify-between select-none overflow-hidden"
     >
-      {/* Video Source: YouTube Official Trailer or HTML5 Video Stream */}
-      {useYouTubeTrailer && activePlayingItem.youtubeKey ? (
-        <div className="relative w-full h-full">
-          <iframe
-            src={`https://www.youtube-nocookie.com/embed/${activePlayingItem.youtubeKey}?autoplay=1&mute=0&controls=1&rel=0&modestbranding=1&enablejsapi=1`}
-            title={activePlayingItem.title}
-            className="w-full h-full border-0"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-            allowFullScreen
-          />
-        </div>
-      ) : (
-        <video
-          ref={videoRef}
-          src={activePlayingItem.videoUrl || activePlayingItem.trailerUrl}
-          autoPlay
-          playsInline
-          onTimeUpdate={handleTimeUpdate}
-          onLoadedMetadata={handleTimeUpdate}
-          onEnded={() => setIsPlaying(false)}
-          className="w-full h-full object-contain"
-          onClick={togglePlay}
-        />
-      )}
-
-      {/* Top Bar (Back Button + Title) */}
-      <div
-        className={`absolute top-0 inset-x-0 p-6 md:p-8 bg-gradient-to-b from-black/95 via-black/50 to-transparent flex items-center justify-between transition-opacity duration-300 z-40 ${
-          areControlsVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'
-        }`}
-      >
+      {/* Top Header Bar */}
+      <div className="absolute top-0 inset-x-0 p-4 md:p-6 bg-gradient-to-b from-black/95 via-black/60 to-transparent flex items-center justify-between z-40">
         <div className="flex items-center space-x-4">
           <button
             onClick={stopMedia}
-            className="text-white hover:text-gray-300 transition-colors p-2 rounded-full hover:bg-white/10 shadow-lg"
+            className="text-white hover:text-netflix-red transition-colors p-2 rounded-full hover:bg-white/10"
             aria-label="Back to Browse"
           >
-            <ArrowLeft className="w-8 h-8" />
+            <ArrowLeft className="w-7 h-7" />
           </button>
           <div>
-            <h2 className="text-lg sm:text-2xl font-black text-white uppercase tracking-tight drop-shadow-md">
+            <div className="flex items-center space-x-2">
+              <span className="text-xs font-bold text-netflix-red uppercase tracking-wider">
+                {isTv ? 'TV Series' : 'Movie'}
+              </span>
+              <span className="text-xs text-neutral-500">•</span>
+              <span className="text-xs text-neutral-400">{activePlayingItem.releaseYear}</span>
+            </div>
+            <h2 className="text-base sm:text-xl font-black text-white uppercase tracking-tight line-clamp-1">
               {activePlayingItem.title}
             </h2>
-            <p className="text-xs sm:text-sm text-neutral-400">
-              {activePlayingItem.quality} • {activePlayingItem.audioChannels || 'Dolby Atmos'}
-            </p>
           </div>
         </div>
 
-        {activePlayingItem.youtubeKey && (
+        {/* Server & Episode Selector Toolbar */}
+        <div className="flex items-center space-x-2 sm:space-x-3 text-xs">
+          {/* Episode Browser (If TV Show) */}
+          {isTv && (
+            <div className="flex items-center space-x-1.5 bg-neutral-900/90 border border-white/15 px-2.5 py-1 rounded">
+              <Tv className="w-3.5 h-3.5 text-netflix-red hidden sm:inline" />
+              <div className="flex items-center space-x-1">
+                <span className="text-neutral-400 font-semibold">S:</span>
+                <select
+                  value={season}
+                  onChange={(e) => {
+                    setSeason(Number(e.target.value));
+                    setIsLoading(true);
+                  }}
+                  className="bg-transparent text-white font-bold focus:outline-none cursor-pointer"
+                >
+                  {[1, 2, 3, 4, 5, 6].map((s) => (
+                    <option key={s} value={s} className="bg-neutral-900 text-white">
+                      {s}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex items-center space-x-1 ml-2">
+                <span className="text-neutral-400 font-semibold">E:</span>
+                <select
+                  value={episode}
+                  onChange={(e) => {
+                    setEpisode(Number(e.target.value));
+                    setIsLoading(true);
+                  }}
+                  className="bg-transparent text-white font-bold focus:outline-none cursor-pointer"
+                >
+                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((ep) => (
+                    <option key={ep} value={ep} className="bg-neutral-900 text-white">
+                      {ep}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          )}
+
+          {/* Server Switcher Dropdown */}
+          <div className="relative">
+            <button
+              onClick={() => setShowServerMenu((prev) => !prev)}
+              className="flex items-center space-x-1.5 bg-neutral-900/90 hover:bg-neutral-800 text-white font-semibold px-3 py-1.5 rounded border border-white/20 shadow-md transition-colors"
+            >
+              <Server className="w-3.5 h-3.5 text-netflix-red" />
+              <span className="hidden sm:inline">
+                {serverOptions.find((s) => s.id === activeServer)?.label}
+              </span>
+              <span className="sm:hidden">Server</span>
+              <ChevronDown className="w-3.5 h-3.5 text-neutral-400 ml-0.5" />
+            </button>
+
+            {showServerMenu && (
+              <div className="absolute right-0 mt-2 w-56 bg-[#0c0c0c] border border-neutral-800 rounded-lg shadow-2xl py-2 z-50 text-xs">
+                <div className="px-3 py-1.5 text-[11px] font-bold text-neutral-500 uppercase tracking-wider border-b border-neutral-800">
+                  Select Stream Server
+                </div>
+                {serverOptions.map((srv) => (
+                  <button
+                    key={srv.id}
+                    onClick={() => {
+                      setActiveServer(srv.id);
+                      setShowServerMenu(false);
+                      setIsLoading(true);
+                    }}
+                    className={`w-full flex items-center justify-between px-3 py-2 text-left hover:bg-neutral-900 transition-colors ${
+                      activeServer === srv.id
+                        ? 'text-netflix-red font-bold bg-neutral-900/60'
+                        : 'text-neutral-300'
+                    }`}
+                  >
+                    <span>{srv.label}</span>
+                    <span className="text-[10px] bg-neutral-800 text-neutral-400 px-1.5 py-0.5 rounded">
+                      {srv.tag}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Fullscreen Toggle */}
           <button
-            onClick={() => setUseYouTubeTrailer((prev) => !prev)}
-            className="flex items-center space-x-2 text-xs font-semibold bg-neutral-900/90 hover:bg-neutral-800 text-white px-3 py-1.5 rounded border border-white/20 shadow-md transition-colors"
+            onClick={toggleFullscreen}
+            className="p-1.5 rounded hover:bg-white/10 text-white transition-colors"
+            title="Toggle Fullscreen (f)"
           >
-            <Tv className="w-4 h-4 text-netflix-red" />
-            <span>{useYouTubeTrailer ? 'Switch to Cinema Stream' : 'Switch to Official Trailer'}</span>
+            {isFullscreen ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}
           </button>
+        </div>
+      </div>
+
+      {/* Main Video Screen Container */}
+      <div className="relative w-full h-full flex items-center justify-center bg-black">
+        {/* Loading Spinner */}
+        {isLoading && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/90 z-20 space-y-3">
+            <div className="w-10 h-10 border-3 border-netflix-red border-t-transparent rounded-full animate-spin" />
+            <p className="text-xs text-neutral-400 font-medium">
+              Connecting to {serverOptions.find((s) => s.id === activeServer)?.label}...
+            </p>
+          </div>
+        )}
+
+        {/* Embedded Streaming Player */}
+        {isEmbedServer ? (
+          <iframe
+            key={`${activeServer}-${season}-${episode}`}
+            src={streamUrl}
+            title={activePlayingItem.title}
+            className="w-full h-full border-0"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen"
+            allowFullScreen
+            onLoad={() => setIsLoading(false)}
+          />
+        ) : (
+          /* Direct HTML5 Video Stream Fallback */
+          <video
+            ref={videoRef}
+            src={streamUrl}
+            autoPlay
+            controls
+            playsInline
+            onLoadedData={() => setIsLoading(false)}
+            onCanPlay={() => {
+              setIsLoading(false);
+              if (videoRef.current) {
+                videoRef.current.play().catch(() => {
+                  if (videoRef.current) videoRef.current.muted = true;
+                  videoRef.current?.play().catch(() => {});
+                });
+              }
+            }}
+            className="w-full h-full object-contain"
+          />
         )}
       </div>
 
-      {/* Center Big Play/Pause Ripple on Click (For HTML5 player) */}
-      {!useYouTubeTrailer && !isPlaying && (
-        <div
-          onClick={togglePlay}
-          className="absolute inset-0 flex items-center justify-center bg-black/40 z-30 cursor-pointer"
-        >
-          <div className="w-20 h-20 rounded-full bg-netflix-red/90 text-white flex items-center justify-center shadow-2xl hover:scale-110 transition-transform">
-            <Play className="w-10 h-10 fill-current ml-1" />
-          </div>
+      {/* Bottom Stream Info & Fallback Banner */}
+      <div className="absolute bottom-0 inset-x-0 p-3 sm:p-4 bg-gradient-to-t from-black/95 to-transparent flex flex-col sm:flex-row sm:items-center sm:justify-between text-xs text-neutral-400 pointer-events-auto z-30">
+        <div className="flex items-center space-x-2 mb-2 sm:mb-0">
+          <span className="w-2 h-2 rounded-full bg-netflix-match animate-pulse" />
+          <span>
+            Playing via <strong className="text-white">{serverOptions.find((s) => s.id === activeServer)?.label}</strong>
+          </span>
+          {isTv && (
+            <span className="text-neutral-500 hidden sm:inline">
+              (Season {season}, Episode {episode})
+            </span>
+          )}
         </div>
-      )}
 
-      {/* Bottom Controls HUD (For HTML5 player) */}
-      {!useYouTubeTrailer && (
-        <div
-          className={`absolute bottom-0 inset-x-0 p-4 sm:p-8 bg-gradient-to-t from-black/95 via-black/60 to-transparent space-y-3 transition-opacity duration-300 z-40 ${
-            areControlsVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'
-          }`}
-        >
-          {/* Scrubber Bar */}
-          <div className="relative group/scrubber flex items-center cursor-pointer">
-            <input
-              type="range"
-              min={0}
-              max={duration || 100}
-              value={currentTime}
-              onChange={handleSeek}
-              className="w-full h-1.5 bg-neutral-700/80 rounded-lg appearance-none cursor-pointer accent-netflix-red group-hover/scrubber:h-2.5 transition-all"
-              style={{
-                background: `linear-gradient(to right, #E50914 ${progressPercentage}%, rgba(255,255,255,0.2) ${progressPercentage}%)`,
-              }}
-            />
-          </div>
-
-          {/* Action Controls Line */}
-          <div className="flex items-center justify-between text-white">
-            {/* Left Controls */}
-            <div className="flex items-center space-x-4 sm:space-x-6">
-              {/* Play/Pause */}
-              <button
-                onClick={togglePlay}
-                className="hover:text-netflix-red transition-colors focus:outline-none"
-              >
-                {isPlaying ? <Pause className="w-6 h-6 fill-current" /> : <Play className="w-6 h-6 fill-current" />}
-              </button>
-
-              {/* Rewind 10s */}
-              <button
-                onClick={handleSeekBackward}
-                title="Back 10s"
-                className="hover:text-gray-300 transition-colors focus:outline-none hidden sm:block"
-              >
-                <RotateCcw className="w-5 h-5" />
-              </button>
-
-              {/* Forward 10s */}
-              <button
-                onClick={handleSeekForward}
-                title="Forward 10s"
-                className="hover:text-gray-300 transition-colors focus:outline-none hidden sm:block"
-              >
-                <RotateCw className="w-5 h-5" />
-              </button>
-
-              {/* Volume Control */}
-              <div className="flex items-center space-x-2 group/volume">
-                <button
-                  onClick={toggleMute}
-                  className="hover:text-gray-300 transition-colors focus:outline-none"
-                >
-                  {isMuted || volume === 0 ? <VolumeX className="w-6 h-6" /> : <Volume2 className="w-6 h-6" />}
-                </button>
-                <input
-                  type="range"
-                  min={0}
-                  max={1}
-                  step={0.05}
-                  value={isMuted ? 0 : volume}
-                  onChange={handleVolumeChange}
-                  className="w-16 sm:w-24 h-1 bg-neutral-600 rounded appearance-none accent-white cursor-pointer"
-                />
-              </div>
-
-              {/* Time Stamp */}
-              <div className="text-xs sm:text-sm text-neutral-300 font-mono">
-                <span>{formatTime(currentTime)}</span>
-                <span className="mx-1 text-neutral-500">/</span>
-                <span>{formatTime(duration)}</span>
-              </div>
-            </div>
-
-            {/* Right Controls */}
-            <div className="flex items-center space-x-4 sm:space-x-5 relative">
-              {/* Playback Speed */}
-              <div className="relative">
-                <button
-                  onClick={() => setShowSpeedMenu((prev) => !prev)}
-                  className="text-xs sm:text-sm font-semibold hover:text-netflix-red px-2 py-1 rounded bg-neutral-900 border border-neutral-700 transition-colors"
-                >
-                  {playbackSpeed}x
-                </button>
-
-                {showSpeedMenu && (
-                  <div className="absolute bottom-10 right-0 bg-[#0c0c0c] border border-neutral-800 rounded shadow-xl py-1 text-xs w-24 z-50">
-                    {[0.5, 0.75, 1, 1.25, 1.5, 2].map((s) => (
-                      <button
-                        key={s}
-                        onClick={() => changeSpeed(s)}
-                        className={`w-full text-left px-3 py-1.5 hover:bg-neutral-800 ${
-                          playbackSpeed === s ? 'text-netflix-red font-bold' : 'text-neutral-300'
-                        }`}
-                      >
-                        {s}x
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Audio & Subtitles Dialog */}
-              <div className="relative">
-                <button
-                  onClick={() => setShowAudioMenu((prev) => !prev)}
-                  title="Audio & Subtitles"
-                  className="hover:text-netflix-red transition-colors focus:outline-none"
-                >
-                  <MessageSquare className="w-5 h-5" />
-                </button>
-
-                {showAudioMenu && (
-                  <div className="absolute bottom-10 right-0 bg-[#0c0c0c] border border-neutral-800 rounded-lg shadow-2xl p-4 text-xs w-64 sm:w-72 z-50 space-y-4">
-                    <div>
-                      <h4 className="font-bold text-white mb-2 pb-1 border-b border-neutral-800">Audio</h4>
-                      <div className="space-y-1">
-                        {['English [Original] (5.1)', 'Spanish (5.1)', 'French (Stereo)', 'Japanese (Atmos)'].map((a) => (
-                          <button
-                            key={a}
-                            onClick={() => setSelectedAudio(a)}
-                            className={`w-full text-left py-1 hover:text-white ${
-                              selectedAudio === a ? 'text-netflix-red font-bold' : 'text-neutral-400'
-                            }`}
-                          >
-                            {a}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div>
-                      <h4 className="font-bold text-white mb-2 pb-1 border-b border-neutral-800">Subtitles</h4>
-                      <div className="space-y-1">
-                        {['Off', 'English [CC]', 'Spanish', 'French', 'Japanese', 'Arabic'].map((sub) => (
-                          <button
-                            key={sub}
-                            onClick={() => setSelectedSubtitle(sub)}
-                            className={`w-full text-left py-1 hover:text-white ${
-                              selectedSubtitle === sub ? 'text-netflix-red font-bold' : 'text-neutral-400'
-                            }`}
-                          >
-                            {sub}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Fullscreen Toggle */}
-              <button
-                onClick={toggleFullscreen}
-                className="hover:text-netflix-red transition-colors focus:outline-none"
-              >
-                {isFullscreen ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}
-              </button>
-            </div>
-          </div>
+        <div className="flex items-center space-x-3 text-[11px]">
+          <span>Having buffering or playback issues?</span>
+          <button
+            onClick={() => {
+              const nextServer: ServerType =
+                activeServer === 'server1'
+                  ? 'server2'
+                  : activeServer === 'server2'
+                  ? 'server3'
+                  : 'server1';
+              setActiveServer(nextServer);
+              setIsLoading(true);
+            }}
+            className="text-netflix-red hover:underline font-bold flex items-center space-x-1"
+          >
+            <RefreshCw className="w-3 h-3" />
+            <span>Switch Server</span>
+          </button>
         </div>
-      )}
+      </div>
     </div>
   );
 }

@@ -16,24 +16,20 @@ export default function BillboardHero({ media }: BillboardHeroProps) {
 
   useEffect(() => {
     if (videoRef.current) {
+      videoRef.current.defaultMuted = true;
       videoRef.current.muted = isGlobalMuted;
-    }
-  }, [isGlobalMuted]);
-
-  const handleVideoCanPlay = () => {
-    if (videoRef.current) {
       videoRef.current
         .play()
         .then(() => setIsVideoPlaying(true))
         .catch(() => setIsVideoPlaying(false));
     }
-  };
+  }, [isGlobalMuted, media]);
 
   return (
-    <div className="relative w-full h-[80vh] md:h-[88vh] bg-black overflow-hidden">
+    <div className="relative w-full h-[80vh] md:h-[88vh] bg-black overflow-hidden select-none">
       {/* Background Media Container */}
       <div className="absolute inset-0 w-full h-full">
-        {/* Backdrop Image */}
+        {/* High-Resolution Backdrop Image */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={media.backdropUrl}
@@ -52,15 +48,19 @@ export default function BillboardHero({ media }: BillboardHeroProps) {
           autoPlay
           playsInline
           loop
-          onCanPlay={handleVideoCanPlay}
+          onCanPlay={() => {
+            if (videoRef.current) {
+              videoRef.current.play().catch(() => {});
+            }
+          }}
           className={`absolute inset-0 w-full h-full object-cover object-center transition-opacity duration-1000 ${
             isVideoPlaying ? 'opacity-100' : 'opacity-0'
           }`}
         />
 
-        {/* 3-Way Vignette Gradients (Transitioning into pitch black #000000) */}
+        {/* 3-Way Vignette Gradients (Transitioning directly into pure OLED black #000000) */}
         <div className="absolute inset-0 hero-vignette-left w-full md:w-3/4 z-10" />
-        <div className="absolute inset-x-0 top-0 h-36 bg-gradient-to-b from-black/85 via-black/40 to-transparent z-10" />
+        <div className="absolute inset-x-0 top-0 h-36 bg-gradient-to-b from-black/90 via-black/40 to-transparent z-10" />
         <div className="absolute inset-x-0 bottom-0 h-52 md:h-72 hero-vignette-bottom z-10" />
       </div>
 
@@ -76,15 +76,15 @@ export default function BillboardHero({ media }: BillboardHeroProps) {
           </div>
         )}
 
-        {/* Large Title */}
-        <h1 className="text-3xl sm:text-5xl md:text-6xl font-black text-white tracking-tight drop-shadow-[0_4px_20px_rgba(0,0,0,0.95)] uppercase mb-3 leading-tight">
+        {/* Title */}
+        <h1 className="text-3xl sm:text-5xl md:text-6xl font-black text-white tracking-tight drop-shadow-[0_4px_24px_rgba(0,0,0,0.98)] uppercase mb-3 leading-tight">
           {media.title}
         </h1>
 
         {/* Top 10 Ribbon */}
         {media.top10Rank && (
           <div className="flex items-center space-x-2 mb-3">
-            <div className="bg-netflix-red text-white text-[11px] font-black px-1.5 py-0.5 rounded-sm shadow">
+            <div className="bg-netflix-red text-white text-[11px] font-black px-1.5 py-0.5 rounded-sm shadow-md">
               TOP 10
             </div>
             <span className="text-sm font-bold text-white drop-shadow-md">
@@ -94,16 +94,16 @@ export default function BillboardHero({ media }: BillboardHeroProps) {
         )}
 
         {/* Synopsis Clamp */}
-        <p className="text-sm sm:text-base text-gray-200 line-clamp-3 md:line-clamp-4 leading-relaxed drop-shadow-[0_2px_10px_rgba(0,0,0,0.95)] mb-6 font-normal">
+        <p className="text-sm sm:text-base text-neutral-200 line-clamp-3 md:line-clamp-4 leading-relaxed drop-shadow-[0_2px_12px_rgba(0,0,0,0.98)] mb-6 font-normal">
           {media.overview}
         </p>
 
         {/* Action Buttons */}
         <div className="flex items-center space-x-3">
-          {/* Play Button */}
+          {/* Play Full Movie / Show Button */}
           <button
             onClick={() => playMedia(media)}
-            className="flex items-center space-x-2 bg-white hover:bg-neutral-200 text-black font-bold text-sm sm:text-base px-6 py-2.5 rounded transition-all duration-200 shadow-xl hover:scale-105 active:scale-95"
+            className="flex items-center space-x-2 bg-white hover:bg-neutral-200 text-black font-bold text-sm sm:text-base px-6 py-2.5 rounded transition-all duration-200 shadow-2xl hover:scale-105 active:scale-95 cursor-pointer"
           >
             <Play className="w-5 h-5 fill-current ml-0.5" />
             <span>Play</span>
@@ -112,7 +112,7 @@ export default function BillboardHero({ media }: BillboardHeroProps) {
           {/* More Info Button */}
           <button
             onClick={() => openDetailModal(media)}
-            className="flex items-center space-x-2 bg-white/25 hover:bg-white/15 text-white font-bold text-sm sm:text-base px-6 py-2.5 rounded backdrop-blur-md transition-all duration-200 shadow-xl hover:scale-105 active:scale-95 border border-white/15"
+            className="flex items-center space-x-2 bg-white/25 hover:bg-white/15 text-white font-bold text-sm sm:text-base px-6 py-2.5 rounded backdrop-blur-md transition-all duration-200 shadow-2xl hover:scale-105 active:scale-95 border border-white/15 cursor-pointer"
           >
             <Info className="w-5 h-5" />
             <span>More Info</span>
@@ -125,12 +125,12 @@ export default function BillboardHero({ media }: BillboardHeroProps) {
         <button
           onClick={toggleGlobalMute}
           aria-label={isGlobalMuted ? 'Unmute trailer' : 'Mute trailer'}
-          className="w-10 h-10 rounded-full border border-white/40 bg-black/50 hover:bg-black/80 flex items-center justify-center text-white backdrop-blur-md transition-all duration-200 shadow-lg"
+          className="w-10 h-10 rounded-full border border-white/40 bg-black/50 hover:bg-black/80 flex items-center justify-center text-white backdrop-blur-md transition-all duration-200 shadow-xl cursor-pointer"
         >
           {isGlobalMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
         </button>
 
-        <div className="bg-black/80 border-l-4 border-netflix-red text-white text-xs font-semibold py-1 px-3.5 pr-6 tracking-wide shadow-xl backdrop-blur-sm">
+        <div className="bg-black/80 border-l-4 border-netflix-red text-white text-xs font-semibold py-1 px-3.5 pr-6 tracking-wide shadow-2xl backdrop-blur-sm">
           {media.maturityRating}
         </div>
       </div>
