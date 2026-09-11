@@ -1,10 +1,9 @@
 # 67studio 🎬
 **High-Fidelity Netflix Web Client & Pluggable Streaming Platform**
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fdusk-futile%2F67studio)
-[![GitHub Repository](https://img.shields.io/badge/GitHub-dusk--futile%2F67studio-141414?style=flat&logo=github)](https://github.com/dusk-futile/67studio)
-[![Next.js 14](https://img.shields.io/badge/Next.js-14-black?style=flat&logo=next.js)](https://nextjs.org/)
-[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3.4-38B2AC?style=flat&logo=tailwind-css)](https://tailwindcss.com/)
+🌐 **Live Website**: [https://67studio-five.vercel.app](https://67studio-five.vercel.app)  
+📦 **GitHub Repository**: [https://github.com/dusk-futile/67studio](https://github.com/dusk-futile/67studio)  
+🚀 **Vercel Dashboard**: [Inspect Deployment](https://vercel.com/omarelkabbaney2010-3919s-projects/67studio)
 
 ---
 
@@ -59,7 +58,8 @@ Built on **Next.js 14**, **TypeScript**, and **Tailwind CSS**, with a pluggable 
 - Playback speed selector (`0.5x` to `2.0x`) and Audio/Subtitle language menu.
 - Keyboard shortcuts: `Space` / `k` (Play/Pause), `f` (Fullscreen), `m` (Mute), `ArrowLeft/Right` (10s seek), `Esc` (Close).
 
-### 5. Live Debounced Instant Search
+### 5. Live Debounced Instant Search & Free Movie DB API Integration
+- Live API integration with Free Movie DB & JustWatch (`https://imdb.iamidiotareyoutoo.com/justwatch?q=...`).
 - Real-time search across titles, genres, directors, and cast members.
 - Instant responsive grid layout with filter pills (All, Movies, TV Shows).
 
@@ -67,27 +67,6 @@ Built on **Next.js 14**, **TypeScript**, and **Tailwind CSS**, with a pluggable 
 - Instant bookmarking stored in `localStorage` (`67studio_my_list`).
 - Generates a dedicated "My List" content shelf on the home feed.
 - Multi-profile selector (Omar, Kids, Studio VIP).
-
----
-
-## 🔌 Pluggable Streaming API Architecture
-
-The data layer is completely abstracted in `src/services/mediaService.ts`.
-
-To connect your custom streaming backend or TMDB API:
-1. Add your API credentials in `.env.local`:
-   ```bash
-   NEXT_PUBLIC_API_URL=https://your-api.com/v1
-   NEXT_PUBLIC_API_KEY=your_secret_api_key
-   ```
-2. Replace or extend the resolvers in `src/services/mediaService.ts`:
-   ```typescript
-   export async function getBillboardMedia(): Promise<MediaItem> {
-     const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/featured`);
-     return res.json();
-   }
-   ```
-No UI components require changes.
 
 ---
 
@@ -107,18 +86,4 @@ npm run dev
 # Run production build
 npm run build
 npm run start
-```
-
----
-
-## 🌐 Deployment to Vercel
-
-### Option 1: One-Click Web Deployment
-1. Click the [Deploy to Vercel](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fdusk-futile%2F67studio) button.
-2. Select your Vercel account and click **Deploy**.
-
-### Option 2: Vercel CLI
-```bash
-npx vercel
-# Follow the interactive prompts to link and deploy
 ```
