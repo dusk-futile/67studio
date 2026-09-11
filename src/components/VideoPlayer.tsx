@@ -78,27 +78,23 @@ export default function VideoPlayer() {
 
   // Anti-Redirect and Host Window Shield Engine
   useEffect(() => {
-    if (!activePlayingItem) return;
+    if (!activePlayingItem || typeof window === 'undefined') return;
 
     isCleanExitRef.current = false;
 
-    // 1. Intercept programmatic popup / new-tab window.open attempts on parent window
-    const originalOpen = window.open;
-    window.open = function (...args: any[]) {
-      console.warn('[67studio Shield] Neutralized external ad popup attempt:', args);
-      return null;
-    };
+    // 1. Safely intercept programmatic popup / new-tab window.open attempts on parent window
+    let originalOpen: typeof window.open | undefined;
+    try {
+      originalOpen = window.open;
+      window.open = function (...args: any[]) {
+        console.warn('[67studio Shield] Neutralized external ad popup attempt:', args);
+        return null;
+      };
+    } catch (e) {
+      // Non-writable in certain strict environments; ignore safely
+    }
 
-    // 2. Prevent uninvited top-level redirects away from 67studio
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (!isCleanExitRef.current) {
-        e.preventDefault();
-        e.returnValue = '';
-        return '';
-      }
-    };
-
-    // 3. Prevent window defocus / popunder tab stealing
+    // 2. Prevent window defocus / popunder tab stealing
     const handleBlur = () => {
       setTimeout(() => {
         if (document.activeElement?.tagName !== 'IFRAME') {
@@ -107,12 +103,16 @@ export default function VideoPlayer() {
       }, 80);
     };
 
-    window.addEventListener('beforeunload', handleBeforeUnload);
     window.addEventListener('blur', handleBlur);
 
     return () => {
-      window.open = originalOpen;
-      window.removeEventListener('beforeunload', handleBeforeUnload);
+      try {
+        if (originalOpen) {
+          window.open = originalOpen;
+        }
+      } catch (e) {
+        // Ignore
+      }
       window.removeEventListener('blur', handleBlur);
     };
   }, [activePlayingItem]);
@@ -253,14 +253,13 @@ export default function VideoPlayer() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [activePlayingItem, episode, handleNextServer, showToast]);
 
-  if (!activePlayingItem) return null;
-
-  const tmdbId = activePlayingItem.tmdbId;
-  const isTv = activePlayingItem.type === 'tv';
+  const tmdbId = activePlayingItem?.tmdbId;
+  const isTv = activePlayingItem?.type === 'tv';
 
   const getStreamUrl = (): string => {
+    if (!activePlayingItem) return '';
     if (!tmdbId) {
-      return activePlayingItem.videoUrl || activePlayingItem.trailerUrl;
+      return activePlayingItem.videoUrl || activePlayingItem.trailerUrl || '';
     }
 
     switch (activeServer) {
@@ -293,11 +292,11 @@ export default function VideoPlayer() {
         if (youtubeKey) {
           return `https://www.youtube-nocookie.com/embed/${youtubeKey}?autoplay=1&mute=0&controls=1&rel=0&modestbranding=1`;
         }
-        return activePlayingItem.trailerUrl;
+        return activePlayingItem.trailerUrl || '';
 
       case 'direct':
       default:
-        return activePlayingItem.videoUrl || activePlayingItem.trailerUrl;
+        return activePlayingItem.videoUrl || activePlayingItem.trailerUrl || '';
     }
   };
 
@@ -321,31 +320,45 @@ export default function VideoPlayer() {
 
   // Direct Native HLS (.m3u8) / MP4 Streaming Engine with Hls.js
   useEffect(() => {
-    if (!activePlayingItem || isEmbedServer || !videoRef.current || !streamUrl) return;
+    if (!activePlayingItem || isEmbedServer || !videoRef.current || !streamUrl || typeof window === 'undefined') return;
 
-    if (streamUrl.includes('.m3u8') && Hls.isSupported()) {
-      const hls = new Hls({
-        enableWorker: true,
-        lowLatencyMode: true,
-      });
-      hls.loadSource(streamUrl);
-      hls.attachMedia(videoRef.current);
-      hls.on(Hls.Events.MANIFEST_PARSED, () => {
-        setIsLoading(false);
-        videoRef.current?.play().catch(() => {});
-      });
-      hls.on(Hls.Events.ERROR, (_event, data) => {
-        if (data.fatal) {
-          handleNextServer('Direct stream error. Switching to backup server...');
-        }
-      });
+    if (streamUrl.includes('.m3u8') && Hls && Hls.isSupported()) {
+      let hls: Hls | null = null;
+      try {
+        hls = new Hls({
+          enableWorker: true,
+          lowLatencyMode: true,
+        });
+        hls.loadSource(streamUrl);
+        hls.attachMedia(videoRef.current);
+        hls.on(Hls.Events.MANIFEST_PARSED, () => {
+          setIsLoading(false);
+          videoRef.current?.play().catch(() => {});
+        });
+        hls.on(Hls.Events.ERROR, (_event, data) => {
+          if (data.fatal) {
+            handleNextServer('Direct stream error. Switching to backup server...');
+          }
+        });
+      } catch (err) {
+        console.warn('HLS initialization error:', err);
+      }
       return () => {
-        hls.destroy();
+        if (hls) {
+          try {
+            hls.destroy();
+          } catch (e) {
+            // ignore
+          }
+        }
       };
-    } else if (videoRef.current.canPlayType('application/vnd.apple.mpegurl') && streamUrl.includes('.m3u8')) {
+    } else if (videoRef.current?.canPlayType('application/vnd.apple.mpegurl') && streamUrl.includes('.m3u8')) {
       videoRef.current.src = streamUrl;
     }
   }, [activePlayingItem, isEmbedServer, streamUrl, handleNextServer]);
+
+  // All React Hooks have executed unconditionally above this line.
+  if (!activePlayingItem) return null;
 
   const currentSeasonObj = activePlayingItem.seasons?.find((s) => s.seasonNumber === season);
 

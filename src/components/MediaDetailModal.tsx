@@ -19,6 +19,7 @@ export default function MediaDetailModal() {
   const {
     activeModalItem,
     closeDetailModal,
+    openDetailModal,
     playMedia,
     toggleMyList,
     isInMyList,
@@ -355,7 +356,7 @@ export default function MediaDetailModal() {
                     onClick={() => {
                       closeDetailModal();
                       setTimeout(() => {
-                        useApp().openDetailModal(item);
+                        openDetailModal(item);
                       }, 100);
                     }}
                     className="bg-[#181818] rounded overflow-hidden border border-white/10 cursor-pointer group hover:border-white/20 transition-all hover:scale-[1.02]"
