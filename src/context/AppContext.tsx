@@ -34,6 +34,11 @@ interface AppContextType {
 
   apifyDatasetId: string;
   setApifyDatasetId: (id: string) => void;
+
+  isWhitelisted: boolean;
+  isAuthChecking: boolean;
+  verifyPassword: (password: string) => boolean;
+  lockStudio: () => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -48,7 +53,53 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [isGlobalMuted, setIsGlobalMuted] = useState(true);
   const [isApiModalOpen, setIsApiModalOpen] = useState(false);
   const [apifyDatasetId, setApifyDatasetId] = useState('ArI5EJKtMHM9AavEd');
+  const [isWhitelisted, setIsWhitelisted] = useState(false);
+  const [isAuthChecking, setIsAuthChecking] = useState(true);
 
+  const WHITELIST_PASSWORD = 'sus6767';
+
+  // Hydrate Whitelist Auth status from localStorage / cookie
+  useEffect(() => {
+    try {
+      const storedKey = localStorage.getItem('67studio_whitelist_key');
+      const hasCookie = typeof document !== 'undefined' && document.cookie.includes('67studio_auth=sus6767');
+      if (storedKey === WHITELIST_PASSWORD || hasCookie) {
+        setIsWhitelisted(true);
+      }
+    } catch (e) {
+      console.warn('Failed to read whitelist auth:', e);
+    } finally {
+      setIsAuthChecking(false);
+    }
+  }, []);
+
+  const verifyPassword = (password: string): boolean => {
+    if (password.trim() === WHITELIST_PASSWORD) {
+      setIsWhitelisted(true);
+      try {
+        localStorage.setItem('67studio_whitelist_key', WHITELIST_PASSWORD);
+        if (typeof document !== 'undefined') {
+          document.cookie = `67studio_auth=${WHITELIST_PASSWORD}; path=/; max-age=31536000; SameSite=Lax`;
+        }
+      } catch (e) {
+        console.warn('Failed to save whitelist key:', e);
+      }
+      return true;
+    }
+    return false;
+  };
+
+  const lockStudio = () => {
+    setIsWhitelisted(false);
+    try {
+      localStorage.removeItem('67studio_whitelist_key');
+      if (typeof document !== 'undefined') {
+        document.cookie = '67studio_auth=; path=/; max-age=0; SameSite=Lax';
+      }
+    } catch (e) {
+      console.warn('Failed to clear whitelist key:', e);
+    }
+  };
 
   // Hydrate My List from localStorage
   useEffect(() => {
@@ -129,6 +180,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setIsApiModalOpen,
         apifyDatasetId,
         setApifyDatasetId,
+        isWhitelisted,
+        isAuthChecking,
+        verifyPassword,
+        lockStudio,
       }}
     >
       {children}

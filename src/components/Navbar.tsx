@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, Bell, ChevronDown, X, Check, Film, Tv, Sparkles } from 'lucide-react';
+import { Search, Bell, ChevronDown, X, Check, Film, Tv, Sparkles, Lock } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { USER_PROFILES } from '../services/mockData';
 
@@ -14,6 +14,7 @@ export default function Navbar() {
     activeNav,
     setActiveNav,
     setIsApiModalOpen,
+    lockStudio,
   } = useApp();
 
   const [isScrolled, setIsScrolled] = useState(false);
@@ -267,8 +268,15 @@ export default function Navbar() {
                   Help Center
                 </button>
                 <div className="border-t border-neutral-800 my-1"></div>
-                <button className="w-full text-left px-4 py-1.5 hover:bg-neutral-900 text-netflix-red font-medium transition-colors">
-                  Sign out of 67studio
+                <button
+                  onClick={() => {
+                    setIsProfileOpen(false);
+                    lockStudio();
+                  }}
+                  className="w-full text-left px-4 py-1.5 hover:bg-neutral-900 text-netflix-red font-medium transition-colors flex items-center space-x-2"
+                >
+                  <Lock className="w-3.5 h-3.5 text-netflix-red" />
+                  <span>Lock Studio & Sign Out</span>
                 </button>
               </div>
             </div>

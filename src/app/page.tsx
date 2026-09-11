@@ -9,6 +9,7 @@ import VideoPlayer from '../components/VideoPlayer';
 import SearchOverlay from '../components/SearchOverlay';
 import Footer from '../components/Footer';
 import ApiSettingsModal from '../components/ApiSettingsModal';
+import PasswordGate from '../components/PasswordGate';
 import { useApp } from '../context/AppContext';
 import { getBillboardMedia, getContentRows } from '../services/mediaService';
 import { BILLBOARD_ITEM, CATEGORY_ROWS } from '../services/mockData';
@@ -23,6 +24,8 @@ export default function Home() {
     setIsApiModalOpen,
     apifyDatasetId,
     setApifyDatasetId,
+    isWhitelisted,
+    isAuthChecking,
   } = useApp();
   const [billboardItem, setBillboardItem] = useState<MediaItem>(BILLBOARD_ITEM);
   const [contentRows, setContentRows] = useState<CategoryRow[]>(CATEGORY_ROWS);
@@ -45,8 +48,10 @@ export default function Home() {
   };
 
   useEffect(() => {
-    loadData(apifyDatasetId);
-  }, [apifyDatasetId]);
+    if (isWhitelisted) {
+      loadData(apifyDatasetId);
+    }
+  }, [apifyDatasetId, isWhitelisted]);
 
 
   // Filter rows based on active nav selection
@@ -69,6 +74,28 @@ export default function Home() {
 
     return contentRows;
   };
+
+  // 1. Initial hydration splash (prevents flash of content)
+  if (isAuthChecking) {
+    return (
+      <div className="min-h-screen bg-black flex flex-col items-center justify-center space-y-4">
+        <div className="flex items-center space-x-2">
+          <span className="font-black text-3xl tracking-tighter text-netflix-red drop-shadow-[0_2px_12px_rgba(229,9,20,0.8)] font-sans">
+            67
+          </span>
+          <span className="text-sm font-black tracking-[0.22em] text-white uppercase border-b-2 border-netflix-red pb-0.5">
+            STUDIO
+          </span>
+        </div>
+        <div className="w-8 h-8 border-2 border-netflix-red border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  // 2. Whitelist Gatekeeper: Blocks access until password 'sus6767' is entered
+  if (!isWhitelisted) {
+    return <PasswordGate />;
+  }
 
   const currentRows = getFilteredRows();
 
