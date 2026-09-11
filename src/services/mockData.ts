@@ -44,7 +44,34 @@ export const BILLBOARD_ITEM: MediaItem = {
   isOriginal: true,
 };
 
+export const TANGERINES_ITEM: MediaItem = {
+  id: 'movie-tangerines-238628',
+  tmdbId: 238628,
+  title: 'Tangerines',
+  overview: "War in Abkhazia, 1992. An Estonian man Ivo has stayed behind to harvest his crops of tangerines. In a bloody conflict at his door, a wounded man is left behind, and Ivo is forced to take him in. (Critics Consensus: Tangerines' impassioned message and the strong work of a solid cast more than make up for the movie's flawed narrative and uneven structure.)",
+  backdropUrl: 'https://image.tmdb.org/t/p/original/6nPbmf5ctz3xFDWEMNokV4vUpyt.jpg',
+  posterUrl: 'https://resizing.flixster.com/sxqz3L_k-cQcIBetIU5xseHoQcg=/164x246/v2/https://resizing.flixster.com/-XZAfHZM39UwaGJIFWKAE8fS0ak=/v3/t/assets/p10750064_p_v8_aa.jpg',
+  trailerUrl: 'https://www.youtube-nocookie.com/embed/WdHwowSRRcs?autoplay=1&mute=0&controls=1&rel=0&modestbranding=1',
+  videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4',
+  youtubeKey: 'WdHwowSRRcs',
+  matchScore: 98,
+  maturityRating: '16+',
+  advisoryTags: ['Oscar Nominated', 'War Drama', 'Critically Acclaimed'],
+  releaseYear: 2013,
+  duration: '1h 27m',
+  quality: '4K Ultra HD',
+  genres: ['Drama', 'War', 'Critically Acclaimed'],
+  type: 'movie',
+  top10Rank: 2,
+  cast: ['Lembit Ulfsak', 'Elmo Nüganen', 'Giorgi Nakhashidze', 'Mikhail Meskhi'],
+  director: 'Zaza Urushadze',
+  audioChannels: 'Dolby Atmos 5.1',
+  subtitles: ['English [CC]', 'Estonian', 'Russian', 'Georgian', 'Spanish'],
+  isOriginal: false,
+};
+
 export const ALL_MEDIA_ITEMS: MediaItem[] = [
+  TANGERINES_ITEM,
   BILLBOARD_ITEM,
   {
     id: 'media-2',
@@ -409,6 +436,7 @@ export const CATEGORY_ROWS: CategoryRow[] = [
     id: 'critically-acclaimed',
     title: 'Critically Acclaimed Dramas',
     items: [
+      ALL_MEDIA_ITEMS[0],
       ALL_MEDIA_ITEMS[3],
       ALL_MEDIA_ITEMS[4],
       ALL_MEDIA_ITEMS[2],

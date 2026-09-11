@@ -154,18 +154,18 @@ export default function VideoPlayer() {
     switch (activeServer) {
       case 'server1':
         return isTv
-          ? `https://vidlink.pro/tv/${tmdbId}/${season}/${episode}?autoplay=true&primaryColor=e50914&secondaryColor=141414&iconColor=ffffff&title=false&nextbutton=true`
-          : `https://vidlink.pro/movie/${tmdbId}?autoplay=true&primaryColor=e50914&secondaryColor=141414&iconColor=ffffff&title=false&nextbutton=true`;
+          ? `https://autoembed.co/tv/tmdb/${tmdbId}/${season}/${episode}`
+          : `https://autoembed.co/movie/tmdb/${tmdbId}`;
 
       case 'server2':
         return isTv
-          ? `https://vidsrc.xyz/embed/tv/${tmdbId}/${season}/${episode}`
-          : `https://vidsrc.xyz/embed/movie/${tmdbId}`;
+          ? `https://vidlink.pro/tv/${tmdbId}/${season}/${episode}?autoplay=true&primaryColor=e50914&secondaryColor=141414&iconColor=ffffff&title=false&nextbutton=true`
+          : `https://vidlink.pro/movie/${tmdbId}?autoplay=true&primaryColor=e50914&secondaryColor=141414&iconColor=ffffff&title=false&nextbutton=true`;
 
       case 'server3':
         return isTv
-          ? `https://autoembed.co/tv/tmdb/${tmdbId}/${season}/${episode}`
-          : `https://autoembed.co/movie/tmdb/${tmdbId}`;
+          ? `https://multiembed.mov/?video_id=${tmdbId}&tmdb=1&s=${season}&e=${episode}`
+          : `https://multiembed.mov/?video_id=${tmdbId}&tmdb=1`;
 
       case 'server4':
         return isTv
@@ -193,12 +193,12 @@ export default function VideoPlayer() {
     (activeServer === 'trailer' && !!youtubeKey);
 
   const serverOptions: Array<{ id: ServerType; label: string }> = [
-    { id: 'server1', label: 'Server 1 (VidLink HD)' },
-    { id: 'server2', label: 'Server 2 (VidSrc Stream)' },
-    { id: 'server3', label: 'Server 3 (AutoEmbed)' },
-    { id: 'server4', label: 'Server 4 (2Embed)' },
-    { id: 'trailer', label: 'Official 4K Trailer' },
-    { id: 'direct', label: 'Direct Stream' },
+    { id: 'server1', label: 'Server 1: AutoEmbed (Clean Stream)' },
+    { id: 'server2', label: 'Server 2: VidLink HD' },
+    { id: 'server3', label: 'Server 3: MultiEmbed' },
+    { id: 'server4', label: 'Server 4: 2Embed' },
+    { id: 'trailer', label: 'Pure Cinema 4K (100% Ad-Free)' },
+    { id: 'direct', label: 'Direct Native Stream (Zero Ads)' },
   ];
 
   return (

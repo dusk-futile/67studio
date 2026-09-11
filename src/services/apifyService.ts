@@ -18,36 +18,66 @@ function decodeHtml(html: string) {
 export function transformApifyItem(item: any, index: number = 0): MediaItem {
   const isSeries = item.vtype === 'series' || item.type === 'show';
   const title = decodeHtml(item.title || 'Netflix Feature');
-  const overview = decodeHtml(item.synopsis || item.summary || 'Official title from the Netflix global catalog.');
-  const image = item.img || item.poster || item.image || 'https://images.unsplash.com/photo-1578632767115-351597cf2477?auto=format&fit=crop&w=600&q=80';
 
-  const match = item.avgrating
+  // Support synopsis, summary, and critics_consensus from Rotten Tomatoes / Apify scrapers
+  let overview = item.synopsis || item.summary || '';
+  if (!overview && item.critics_consensus) {
+    overview = item.critics_consensus
+      .replace(/^Critics Consensus\s*/i, '')
+      .replace(/Read Critics Reviews\s*$/i, '')
+      .trim();
+  }
+  if (!overview) overview = 'Acclaimed feature film available in Ultra HD on 67studio.';
+  overview = decodeHtml(overview);
+
+  const image = item.image || item.img || item.poster || 'https://images.unsplash.com/photo-1578632767115-351597cf2477?auto=format&fit=crop&w=600&q=80';
+
+  // TMDB ID and YouTube key resolution (including Tangerines)
+  let tmdbId: number | undefined = item.tmdbId || item.tmdb_id;
+  let youtubeKey: string | undefined = item.youtubeKey;
+  let backdrop = image;
+
+  if (title.toLowerCase().includes('tangerines') || item.id === 238628) {
+    tmdbId = 238628;
+    youtubeKey = 'WdHwowSRRcs';
+    backdrop = 'https://image.tmdb.org/t/p/original/6nPbmf5ctz3xFDWEMNokV4vUpyt.jpg';
+  }
+
+  const match = item.tomatometer_score
+    ? Math.min(99, Math.max(75, parseInt(item.tomatometer_score, 10)))
+    : item.audience_score
+    ? Math.min(99, Math.max(75, parseInt(item.audience_score, 10)))
+    : item.avgrating
     ? Math.min(99, Math.max(80, Math.round(Number(item.avgrating) * 20)))
     : 96;
 
-  const duration = isSeries ? '2 Seasons' : (item.runtime ? `${Math.floor(item.runtime / 60)}h ${item.runtime % 60}m` : '1h 48m');
+  const duration = isSeries ? '2 Seasons' : (item.runtime ? `${Math.floor(item.runtime / 60)}h ${item.runtime % 60}m` : (tmdbId === 238628 ? '1h 27m' : '1h 48m'));
 
   return {
-    id: `apify-${item.nfid || item.id || index}`,
+    id: `apify-${item.nfid || item.id || tmdbId || index}`,
+    tmdbId,
+    youtubeKey,
     title,
     overview,
-    backdropUrl: image,
+    backdropUrl: backdrop,
     posterUrl: image,
-    trailerUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4',
+    trailerUrl: youtubeKey
+      ? `https://www.youtube-nocookie.com/embed/${youtubeKey}?autoplay=1&mute=0&controls=1&rel=0&modestbranding=1`
+      : 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4',
     videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4',
     matchScore: match,
     maturityRating: '16+',
-    advisoryTags: ['Netflix Global Catalog', 'Ultra HD 4K'],
-    releaseYear: item.year || 2024,
+    advisoryTags: ['Critically Acclaimed', 'Ultra HD 4K'],
+    releaseYear: item.year || (tmdbId === 238628 ? 2013 : 2024),
     duration,
     quality: '4K Ultra HD',
-    genres: ['Netflix Original', isSeries ? 'TV Series' : 'Movie', 'Featured'],
+    genres: ['Featured', isSeries ? 'TV Series' : 'Movie', 'Drama'],
     type: isSeries ? 'tv' : 'movie',
-    cast: ['Netflix Cast', 'Original Production'],
-    director: 'Acclaimed Director',
+    cast: tmdbId === 238628 ? ['Lembit Ulfsak', 'Elmo Nüganen', 'Giorgi Nakhashidze'] : ['Acclaimed Cast'],
+    director: tmdbId === 238628 ? 'Zaza Urushadze' : 'Acclaimed Director',
     audioChannels: 'Dolby Atmos 5.1',
     subtitles: ['English [CC]', 'Spanish', 'French', 'Italian'],
-    isOriginal: true,
+    isOriginal: false,
   };
 }
 
