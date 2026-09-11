@@ -1,11 +1,11 @@
 import { MediaItem, CategoryRow } from '../types/media';
 import { BILLBOARD_ITEM, CATEGORY_ROWS, ALL_MEDIA_ITEMS } from './mockData';
+import { getScrapedNetflixMedia } from './apifyService';
 
 const TMDB_API_KEY = process.env.NEXT_PUBLIC_TMDB_API_KEY || '037d13c7206d0b6cf56e42cf8c42b902';
 const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
 const IMAGE_BASE_ORIGINAL = 'https://image.tmdb.org/t/p/original';
 const IMAGE_BASE_W780 = 'https://image.tmdb.org/t/p/w780';
-const IMAGE_BASE_W500 = 'https://image.tmdb.org/t/p/w500';
 
 const TRAILERS = [
   'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4',
@@ -41,9 +41,6 @@ const GENRE_MAP: Record<number, string> = {
   10765: 'Sci-Fi & Fantasy',
 };
 
-/**
- * Transforms a raw TMDB movie or TV show object into a 67studio MediaItem
- */
 export function transformTmdbItem(item: any, index: number = 0, isTv: boolean = false): MediaItem {
   const isSeries = isTv || item.media_type === 'tv' || !!item.first_air_date;
   const title = item.title || item.name || item.original_title || item.original_name || 'Untitled';
@@ -134,9 +131,6 @@ export function transformTmdbItem(item: any, index: number = 0, isTv: boolean = 
   };
 }
 
-/**
- * Fetch video trailer key from TMDB for a specific title
- */
 export async function getTmdbTrailerKey(tmdbId: number, type: 'movie' | 'tv'): Promise<string | undefined> {
   try {
     const res = await fetch(`${TMDB_BASE_URL}/${type}/${tmdbId}/videos?api_key=${TMDB_API_KEY}`);
@@ -153,22 +147,17 @@ export async function getTmdbTrailerKey(tmdbId: number, type: 'movie' | 'tv'): P
   return undefined;
 }
 
-/**
- * Fetches the Billboard Hero media item from TMDB
- */
 export async function getBillboardMedia(): Promise<MediaItem> {
   try {
     const res = await fetch(`${TMDB_BASE_URL}/trending/movie/week?api_key=${TMDB_API_KEY}`);
     if (res.ok) {
       const data = await res.json();
       if (data.results && data.results.length > 0) {
-        // Pick an item with a solid backdrop and overview
         const topItem = data.results.find((i: any) => i.backdrop_path && i.overview && i.overview.length > 50) || data.results[0];
         const media = transformTmdbItem(topItem, 0, false);
         media.top10Rank = 1;
         media.isOriginal = true;
 
-        // Try to get its official YouTube trailer
         const trailerKey = await getTmdbTrailerKey(topItem.id, 'movie');
         if (trailerKey) {
           media.youtubeKey = trailerKey;
@@ -182,9 +171,6 @@ export async function getBillboardMedia(): Promise<MediaItem> {
   return BILLBOARD_ITEM;
 }
 
-/**
- * Fetches all Netflix categorical content rows from TMDB
- */
 export async function getContentRows(): Promise<CategoryRow[]> {
   try {
     const [
@@ -195,6 +181,7 @@ export async function getContentRows(): Promise<CategoryRow[]> {
       scifiRes,
       dramaRes,
       animationRes,
+      apifyItems,
     ] = await Promise.all([
       fetch(`${TMDB_BASE_URL}/trending/all/week?api_key=${TMDB_API_KEY}`),
       fetch(`${TMDB_BASE_URL}/movie/top_rated?api_key=${TMDB_API_KEY}`),
@@ -203,6 +190,7 @@ export async function getContentRows(): Promise<CategoryRow[]> {
       fetch(`${TMDB_BASE_URL}/discover/movie?with_genres=878&sort_by=popularity.desc&api_key=${TMDB_API_KEY}`),
       fetch(`${TMDB_BASE_URL}/discover/movie?with_genres=18&sort_by=popularity.desc&api_key=${TMDB_API_KEY}`),
       fetch(`${TMDB_BASE_URL}/discover/tv?with_genres=16&sort_by=popularity.desc&api_key=${TMDB_API_KEY}`),
+      getScrapedNetflixMedia(),
     ]);
 
     const trendingData = trendingRes.ok ? await trendingRes.json() : null;
@@ -214,6 +202,15 @@ export async function getContentRows(): Promise<CategoryRow[]> {
     const animationData = animationRes.ok ? await animationRes.json() : null;
 
     const rows: CategoryRow[] = [];
+
+    // Apify Scraped Netflix Originals Shelf
+    if (apifyItems && apifyItems.length > 0) {
+      rows.push({
+        id: 'apify-netflix-originals',
+        title: 'Netflix Exclusives (Live Apify Scraper)',
+        items: apifyItems,
+      });
+    }
 
     if (trendingData?.results?.length) {
       rows.push({
@@ -278,15 +275,12 @@ export async function getContentRows(): Promise<CategoryRow[]> {
 
     if (rows.length > 0) return rows;
   } catch (error) {
-    console.warn('Error fetching TMDB content rows, using local fallback:', error);
+    console.warn('Error fetching content rows, using local fallback:', error);
   }
 
   return CATEGORY_ROWS;
 }
 
-/**
- * Searches TMDB for movies and TV shows matching user query
- */
 export async function searchMedia(query: string): Promise<MediaItem[]> {
   const normalized = query.trim();
   if (!normalized) return [];
@@ -307,7 +301,6 @@ export async function searchMedia(query: string): Promise<MediaItem[]> {
     console.warn('TMDB search error, falling back to local search:', error);
   }
 
-  // Fallback to local catalog
   return ALL_MEDIA_ITEMS.filter((item) => {
     const titleMatch = item.title.toLowerCase().includes(normalized.toLowerCase());
     const genreMatch = item.genres.some((g) => g.toLowerCase().includes(normalized.toLowerCase()));
@@ -316,9 +309,6 @@ export async function searchMedia(query: string): Promise<MediaItem[]> {
   });
 }
 
-/**
- * Gets similar media from TMDB or local catalog
- */
 export async function getSimilarMedia(currentId: string): Promise<MediaItem[]> {
   if (currentId.startsWith('tmdb-')) {
     const rawId = currentId.replace('tmdb-', '');

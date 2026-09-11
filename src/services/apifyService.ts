@@ -1,103 +1,73 @@
 import { MediaItem } from '../types/media';
 
-/**
- * Apify Netflix Scraper Service (easyapi/netflix-search-scraper)
- * 
- * Fetches Netflix catalog datasets scraped via Apify.
- * Requires APIFY_API_TOKEN in .env.local or passed directly.
- */
-
 const APIFY_TOKEN = process.env.NEXT_PUBLIC_APIFY_TOKEN || process.env.APIFY_API_TOKEN || '';
 
-export interface ApifyNetflixItem {
-  id?: string;
-  title?: string;
-  type?: 'movie' | 'show' | 'series';
-  summary?: string;
-  synopsis?: string;
-  overview?: string;
-  image?: string;
-  poster?: string;
-  backdrop?: string;
-  releaseYear?: number;
-  year?: number;
-  duration?: string;
-  runtime?: number;
-  rating?: string;
-  genres?: string[];
+// Known active Apify datasets on user account
+export const PRIMARY_DATASET_ID = 'ArI5EJKtMHM9AavEd';
+
+function decodeHtml(html: string) {
+  if (!html) return '';
+  return html
+    .replace(/&#39;/g, "'")
+    .replace(/&quot;/g, '"')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>');
 }
 
-export function transformApifyItem(item: ApifyNetflixItem, index: number = 0): MediaItem {
-  const isSeries = item.type === 'show' || item.type === 'series';
-  const title = item.title || 'Netflix Title';
-  const overview = item.synopsis || item.summary || item.overview || 'Official Netflix title scraped via Apify.';
-  const poster = item.poster || item.image || 'https://images.unsplash.com/photo-1578632767115-351597cf2477?auto=format&fit=crop&w=600&q=80';
-  const backdrop = item.backdrop || item.image || poster;
+export function transformApifyItem(item: any, index: number = 0): MediaItem {
+  const isSeries = item.vtype === 'series' || item.type === 'show';
+  const title = decodeHtml(item.title || 'Netflix Feature');
+  const overview = decodeHtml(item.synopsis || item.summary || 'Official title from the Netflix global catalog.');
+  const image = item.img || item.poster || item.image || 'https://images.unsplash.com/photo-1578632767115-351597cf2477?auto=format&fit=crop&w=600&q=80';
+
+  const match = item.avgrating
+    ? Math.min(99, Math.max(80, Math.round(Number(item.avgrating) * 20)))
+    : 96;
+
+  const duration = isSeries ? '2 Seasons' : (item.runtime ? `${Math.floor(item.runtime / 60)}h ${item.runtime % 60}m` : '1h 48m');
 
   return {
-    id: `apify-${item.id || index}`,
+    id: `apify-${item.nfid || item.id || index}`,
     title,
     overview,
-    backdropUrl: backdrop,
-    posterUrl: poster,
+    backdropUrl: image,
+    posterUrl: image,
     trailerUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4',
     videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4',
-    matchScore: 97,
-    maturityRating: (item.rating as any) || '16+',
-    advisoryTags: ['Netflix Catalog', '4K Ultra HD'],
-    releaseYear: item.year || item.releaseYear || 2024,
-    duration: item.duration || (isSeries ? '2 Seasons' : '1h 55m'),
+    matchScore: match,
+    maturityRating: '16+',
+    advisoryTags: ['Netflix Global Catalog', 'Ultra HD 4K'],
+    releaseYear: item.year || 2024,
+    duration,
     quality: '4K Ultra HD',
-    genres: item.genres || ['Netflix', 'Popular'],
+    genres: ['Netflix Original', isSeries ? 'TV Series' : 'Movie', 'Featured'],
     type: isSeries ? 'tv' : 'movie',
-    cast: ['Netflix Production'],
+    cast: ['Netflix Cast', 'Original Production'],
     director: 'Acclaimed Director',
+    audioChannels: 'Dolby Atmos 5.1',
+    subtitles: ['English [CC]', 'Spanish', 'French', 'Italian'],
     isOriginal: true,
   };
 }
 
 /**
- * Fetch items from an existing Apify dataset
+ * Fetches scraped Netflix items from the active Apify dataset
  */
-export async function fetchApifyDataset(datasetId: string, token: string = APIFY_TOKEN): Promise<MediaItem[]> {
+export async function getScrapedNetflixMedia(datasetId: string = PRIMARY_DATASET_ID): Promise<MediaItem[]> {
   try {
-    const url = `https://api.apify.com/v2/datasets/${datasetId}/items?token=${token}`;
-    const res = await fetch(url);
+    const token = APIFY_TOKEN;
+    if (!token) return [];
+    const url = `https://api.apify.com/v2/datasets/${datasetId}/items?token=${token}&clean=true`;
+    const res = await fetch(url, { next: { revalidate: 300 } });
     if (res.ok) {
-      const items: ApifyNetflixItem[] = await res.json();
-      return items.map((item, idx) => transformApifyItem(item, idx));
-    }
-  } catch (error) {
-    console.error('Error fetching Apify dataset:', error);
-  }
-  return [];
-}
-
-/**
- * Run the easyapi/netflix-search-scraper actor synchronously
- */
-export async function runApifyNetflixScraper(query: string = '', token: string = APIFY_TOKEN): Promise<MediaItem[]> {
-  if (!token) {
-    console.warn('Apify token is required to execute easyapi/netflix-search-scraper');
-    return [];
-  }
-
-  try {
-    const res = await fetch(
-      `https://api.apify.com/v2/acts/easyapi~netflix-search-scraper/run-sync-get-dataset-items?token=${token}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query }),
+      const items = await res.json();
+      if (Array.isArray(items) && items.length > 0) {
+        return items.map((item, idx) => transformApifyItem(item, idx));
       }
-    );
-
-    if (res.ok) {
-      const items: ApifyNetflixItem[] = await res.json();
-      return items.map((item, idx) => transformApifyItem(item, idx));
     }
   } catch (error) {
-    console.error('Error running Apify Netflix scraper:', error);
+    console.warn('Could not fetch Apify Netflix dataset, continuing with primary catalog:', error);
   }
   return [];
 }
