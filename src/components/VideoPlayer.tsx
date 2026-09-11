@@ -17,20 +17,23 @@ import { useApp } from '../context/AppContext';
 import { getTmdbTrailerKey } from '../services/mediaService';
 import Hls from 'hls.js';
 
-type ServerType = 'vidlove' | 'vidzen' | 'server1' | 'server3' | 'server4' | 'direct' | 'trailer';
+type ServerType = 'vidlink' | 'vidsrc' | 'server1' | 'server3' | 'vidlove' | 'server4' | 'direct' | 'trailer';
 
 const FALLBACK_CHAIN: ServerType[] = [
-  'vidlove',  // 1: VidLove HD (MovieDB primary)
-  'vidzen',   // 2: VidZen Ultra (MovieDB secondary)
+  'vidlink',  // 1: VidLink Ultra HD (1080p, Auto-Subtitles, High Bitrate)
+  'vidsrc',   // 2: VidSrc 4K (Fast CDN Buffer)
   'server1',  // 3: AutoEmbed Clean
   'server3',  // 4: MultiEmbed
-  'server4',  // 5: 2Embed
-  'trailer',  // 6: Pure Cinema 4K
+  'vidlove',  // 5: VidLove Dark
+  'server4',  // 6: 2Embed
+  'direct',   // 7: Direct HLS / MP4 Native
+  'trailer',  // 8: Pure Cinema 4K
 ];
 
 export default function VideoPlayer() {
   const { activePlayingItem, stopMedia, updateWatchProgress } = useApp();
-  const [activeServer, setActiveServer] = useState<ServerType>('vidlove');
+  const [activeServer, setActiveServer] = useState<ServerType>('vidlink');
+  const [adShieldMode, setAdShieldMode] = useState<'standard' | 'strict'>('standard');
   const [season, setSeason] = useState(1);
   const [episode, setEpisode] = useState(1);
   const [youtubeKey, setYoutubeKey] = useState<string | undefined>(undefined);
@@ -49,11 +52,12 @@ export default function VideoPlayer() {
   const isCleanExitRef = useRef(false);
 
   const serverOptions: Array<{ id: ServerType; label: string; tag: string }> = [
-    { id: 'vidlove', label: 'Server 1: VidLove HD', tag: 'Ad-Shielded' },
-    { id: 'vidzen', label: 'Server 2: VidZen Ultra', tag: 'Fast HLS' },
-    { id: 'server1', label: 'Server 3: AutoEmbed', tag: 'Strict Sandbox' },
-    { id: 'server3', label: 'Server 4: MultiEmbed', tag: 'Multi-Source' },
-    { id: 'server4', label: 'Server 5: 2Embed', tag: 'Backup' },
+    { id: 'vidlink', label: 'Server 1: VidLink Ultra HD', tag: '1080p • Auto-Subtitles' },
+    { id: 'vidsrc', label: 'Server 2: VidSrc 4K', tag: 'Fast CDN' },
+    { id: 'server1', label: 'Server 3: AutoEmbed', tag: 'Multi-Source' },
+    { id: 'server3', label: 'Server 4: MultiEmbed', tag: 'Alternative' },
+    { id: 'vidlove', label: 'Server 5: VidLove HD', tag: 'Dark Stream' },
+    { id: 'server4', label: 'Server 6: 2Embed', tag: 'Backup' },
     { id: 'direct', label: 'Direct HLS / MP4 Stream', tag: '100% Zero Ads Native' },
     { id: 'trailer', label: 'Official 4K Cinema Trailer', tag: 'Ad-Free 4K' },
   ];
@@ -65,6 +69,18 @@ export default function VideoPlayer() {
       setToastMessage(null);
     }, 2800);
   }, []);
+
+  const toggleAdShield = useCallback(() => {
+    setAdShieldMode((prev) => {
+      const next = prev === 'standard' ? 'strict' : 'standard';
+      showToast(
+        next === 'strict'
+          ? 'Ad-Shield: Strict Sandbox active (blocks popups, may restrict some servers)'
+          : 'Ad-Shield: Standard mode active (100% video playback enabled)'
+      );
+      return next;
+    });
+  }, [showToast]);
 
   // Automatic Server Failover Switcher
   const handleNextServer = useCallback((reason?: string) => {
@@ -122,7 +138,7 @@ export default function VideoPlayer() {
     if (!activePlayingItem) return;
 
     setIsLoading(true);
-    setActiveServer('vidlove');
+    setActiveServer('vidlink');
     setSeason(activePlayingItem.selectedSeason || 1);
     setEpisode(activePlayingItem.selectedEpisode || 1);
     setAreControlsVisible(true);
@@ -185,14 +201,19 @@ export default function VideoPlayer() {
 
     loadingFailoverTimeoutRef.current = setTimeout(() => {
       if (isLoading) {
-        handleNextServer('Server taking too long. Auto-switching to backup stream...');
+        if (adShieldMode === 'strict') {
+          setAdShieldMode('standard');
+          showToast('Strict sandbox restricted stream. Switched to Standard mode for smooth video.');
+        } else {
+          handleNextServer('Server taking too long. Auto-switching to backup stream...');
+        }
       }
     }, 8500);
 
     return () => {
       if (loadingFailoverTimeoutRef.current) clearTimeout(loadingFailoverTimeoutRef.current);
     };
-  }, [activePlayingItem, isLoading, activeServer, handleNextServer]);
+  }, [activePlayingItem, isLoading, activeServer, adShieldMode, handleNextServer, showToast]);
 
   // Minimalist auto-hide: fades out all controls & cursor after 1.5s of mouse idle
   const handleMouseMove = () => {
@@ -238,6 +259,8 @@ export default function VideoPlayer() {
         toggleFullscreen();
       } else if (e.key === 'n' || e.key === 'N') {
         handleNextServer('Manually switched server.');
+      } else if (e.key === 's' || e.key === 'S') {
+        toggleAdShield();
       } else if (e.key === 'ArrowRight' && activePlayingItem.type === 'tv') {
         setEpisode((prev) => prev + 1);
         setIsLoading(true);
@@ -251,7 +274,7 @@ export default function VideoPlayer() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [activePlayingItem, episode, handleNextServer, showToast]);
+  }, [activePlayingItem, episode, handleNextServer, toggleAdShield, showToast]);
 
   const tmdbId = activePlayingItem?.tmdbId;
   const isTv = activePlayingItem?.type === 'tv';
@@ -263,15 +286,15 @@ export default function VideoPlayer() {
     }
 
     switch (activeServer) {
-      case 'vidlove':
+      case 'vidlink':
         return isTv
-          ? `https://player.vidlove.cc/embed/tv/${tmdbId}/${season}/${episode}?autoplay=true&primarycolor=e50914&server=Dark`
-          : `https://player.vidlove.cc/embed/movie/${tmdbId}?autoplay=true&primarycolor=e50914&server=Dark`;
+          ? `https://vidlink.pro/tv/${tmdbId}/${season}/${episode}?autoplay=true&primaryColor=e50914&secondaryColor=141414&iconColor=ffffff&title=false&nextbutton=true`
+          : `https://vidlink.pro/movie/${tmdbId}?autoplay=true&primaryColor=e50914&secondaryColor=141414&iconColor=ffffff&title=false&nextbutton=true`;
 
-      case 'vidzen':
+      case 'vidsrc':
         return isTv
-          ? `https://vidzen.fun/tv/${tmdbId}/${season}/${episode}?autoplay=true&primarycolor=e50914`
-          : `https://vidzen.fun/movie/${tmdbId}?autoplay=true&primarycolor=e50914`;
+          ? `https://vidsrc.to/embed/tv/${tmdbId}/${season}/${episode}`
+          : `https://vidsrc.to/embed/movie/${tmdbId}`;
 
       case 'server1':
         return isTv
@@ -282,6 +305,11 @@ export default function VideoPlayer() {
         return isTv
           ? `https://multiembed.mov/?video_id=${tmdbId}&tmdb=1&s=${season}&e=${episode}`
           : `https://multiembed.mov/?video_id=${tmdbId}&tmdb=1`;
+
+      case 'vidlove':
+        return isTv
+          ? `https://player.vidlove.cc/embed/tv/${tmdbId}/${season}/${episode}?autoplay=true&primarycolor=e50914&server=Dark`
+          : `https://player.vidlove.cc/embed/movie/${tmdbId}?autoplay=true&primarycolor=e50914&server=Dark`;
 
       case 'server4':
         return isTv
@@ -302,20 +330,25 @@ export default function VideoPlayer() {
 
   const streamUrl = getStreamUrl();
   const isEmbedServer =
-    activeServer === 'vidlove' ||
-    activeServer === 'vidzen' ||
+    activeServer === 'vidlink' ||
+    activeServer === 'vidsrc' ||
     activeServer === 'server1' ||
     activeServer === 'server3' ||
+    activeServer === 'vidlove' ||
     activeServer === 'server4' ||
     (activeServer === 'trailer' && !!youtubeKey);
 
   /**
-   * Strict Sandbox Policy to kill screen-click ad popups and prevent redirects:
-   * By omitting 'allow-top-navigation' and 'allow-top-navigation-by-user-activation', the iframe can NEVER redirect the user's tab.
-   * By omitting 'allow-popups' and 'allow-popups-to-escape-sandbox', any background ad popup attempt on click is discarded by the browser.
+   * Ad-Shield Sandbox Policy:
+   * When 'strict', sandboxes the iframe to block all popup tabs.
+   * When 'standard', removes sandbox restrictions allowing high-bitrate video streams,
+   * DRM/EME decoders, and subtitles to play without "disable sandbox" errors.
    */
-  const getSandboxPolicy = (): string => {
-    return 'allow-scripts allow-same-origin allow-forms allow-presentation';
+  const getSandboxPolicy = (): string | undefined => {
+    if (adShieldMode === 'strict') {
+      return 'allow-scripts allow-same-origin allow-forms allow-presentation';
+    }
+    return undefined;
   };
 
   // Direct Native HLS (.m3u8) / MP4 Streaming Engine with Hls.js
@@ -502,6 +535,22 @@ export default function VideoPlayer() {
             )}
           </div>
 
+          {/* Ad Shield Mode Toggle */}
+          <button
+            onClick={toggleAdShield}
+            className={`flex items-center space-x-1.5 px-2.5 py-1 rounded border shadow-sm transition-colors backdrop-blur-sm text-xs ${
+              adShieldMode === 'strict'
+                ? 'bg-amber-950/60 border-amber-500/40 text-amber-300 hover:bg-amber-900/60'
+                : 'bg-black/60 border-white/15 text-emerald-400 hover:bg-neutral-900'
+            }`}
+            title={`Toggle Ad Shield Mode (Current: ${adShieldMode === 'strict' ? 'Strict Sandbox' : 'Standard Compatibility'}) [S]`}
+          >
+            <Shield className="w-3 h-3" />
+            <span className="hidden sm:inline text-[11px] font-semibold">
+              {adShieldMode === 'strict' ? 'Shield: Strict' : 'Shield: Standard'}
+            </span>
+          </button>
+
           {/* Fullscreen Button */}
           <button
             onClick={toggleFullscreen}
@@ -525,6 +574,7 @@ export default function VideoPlayer() {
       {showKeyboardGuide && (
         <div className="absolute bottom-6 z-40 px-3 py-1 rounded-full bg-black/75 border border-white/15 text-neutral-300 text-[10px] backdrop-blur-md shadow-lg flex items-center space-x-2 transition-opacity duration-700 pointer-events-none">
           <span className="font-mono text-white">[N]</span> Next Server •
+          <span className="font-mono text-white">[S]</span> Shield Mode •
           <span className="font-mono text-white">[F]</span> Fullscreen •
           <span className="font-mono text-white">[←/→]</span> Prev/Next Ep •
           <span className="font-mono text-white">[Esc]</span> Exit
@@ -541,16 +591,16 @@ export default function VideoPlayer() {
           </div>
         )}
 
-        {/* Embedded Streaming Player with Strict Screen-Click Ad Shield */}
+        {/* Embedded Streaming Player with Smart Ad Shield */}
         {isEmbedServer ? (
           <iframe
-            key={`${activeServer}-${season}-${episode}`}
+            key={`${activeServer}-${season}-${episode}-${adShieldMode}`}
             src={streamUrl}
             title={activePlayingItem.title}
             className="w-full h-full border-0"
-            allow="autoplay; fullscreen; picture-in-picture"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen"
             allowFullScreen
-            referrerPolicy="no-referrer"
+            referrerPolicy="origin"
             sandbox={getSandboxPolicy()}
             onLoad={() => setIsLoading(false)}
             onError={() => handleNextServer('Connection interrupted. Auto-switching stream server...')}
