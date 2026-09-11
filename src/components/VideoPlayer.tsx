@@ -101,8 +101,8 @@ export default function VideoPlayer() {
     switch (activeServer) {
       case 'server1':
         return isTv
-          ? `https://vidlink.pro/tv/${tmdbId}/${season}/${episode}`
-          : `https://vidlink.pro/movie/${tmdbId}`;
+          ? `https://vidlink.pro/tv/${tmdbId}/${season}/${episode}?primaryColor=e50914&secondaryColor=141414&iconColor=ffffff&title=false`
+          : `https://vidlink.pro/movie/${tmdbId}?primaryColor=e50914&secondaryColor=141414&iconColor=ffffff&title=false`;
 
       case 'server2':
         return isTv
@@ -130,7 +130,7 @@ export default function VideoPlayer() {
   const isEmbedServer = activeServer === 'server1' || activeServer === 'server2' || activeServer === 'server3' || (activeServer === 'trailer' && !!youtubeKey);
 
   const serverOptions: Array<{ id: ServerType; label: string }> = [
-    { id: 'server1', label: 'Server 1 (VidLink HD)' },
+    { id: 'server1', label: 'Server 1 (VidLink HD - Ad-Free)' },
     { id: 'server2', label: 'Server 2 (AutoEmbed)' },
     { id: 'server3', label: 'Server 3 (2Embed)' },
     { id: 'trailer', label: 'Official 4K Trailer' },
@@ -154,11 +154,12 @@ export default function VideoPlayer() {
         <div className="flex items-center space-x-3 sm:space-x-4">
           <button
             onClick={stopMedia}
-            className="text-white hover:text-netflix-red transition-colors p-2 rounded-full hover:bg-white/10"
+            className="flex items-center space-x-2 text-white hover:text-netflix-red transition-all px-3 py-1.5 rounded-full hover:bg-white/10 bg-black/60 backdrop-blur-md border border-white/20 shadow-lg group"
             aria-label="Back to Browse"
             title="Back to Browse (Esc)"
           >
-            <ArrowLeft className="w-7 h-7" />
+            <ArrowLeft className="w-5 h-5 group-hover:-translate-x-0.5 transition-transform" />
+            <span className="text-xs font-semibold uppercase tracking-wider hidden sm:inline">Back</span>
           </button>
           <div>
             <div className="flex items-center space-x-2">
@@ -287,8 +288,10 @@ export default function VideoPlayer() {
             src={streamUrl}
             title={activePlayingItem.title}
             className="w-full h-full border-0"
+            sandbox="allow-scripts allow-same-origin allow-forms allow-presentation"
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen"
             allowFullScreen
+            referrerPolicy="origin"
             onLoad={() => setIsLoading(false)}
           />
         ) : (
