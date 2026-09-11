@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   ArrowLeft,
+  Home,
   Server,
   Tv,
   Maximize,
@@ -227,17 +228,20 @@ export default function VideoPlayer() {
     }, 1600);
   };
 
-  // Clean exit helper to prevent beforeunload prompts when intentionally closing player
-  const handleCleanExit = (e?: React.MouseEvent) => {
+  // Clean exit helper: exits fullscreen if active and returns directly to the main page
+  const handleCleanExit = useCallback((e?: React.MouseEvent) => {
     if (e) {
       e.stopPropagation();
       e.preventDefault();
     }
     isCleanExitRef.current = true;
+    if (typeof document !== 'undefined' && document.fullscreenElement) {
+      document.exitFullscreen().catch(() => {});
+    }
     stopMedia();
-  };
+  }, [stopMedia]);
 
-  const toggleFullscreen = () => {
+  const toggleFullscreen = useCallback(() => {
     if (!containerRef.current) return;
     if (!document.fullscreenElement) {
       containerRef.current.requestFullscreen().catch(() => {});
@@ -246,7 +250,20 @@ export default function VideoPlayer() {
       document.exitFullscreen().catch(() => {});
       setIsFullscreen(false);
     }
-  };
+    setAreControlsVisible(true);
+  }, []);
+
+  // Sync browser fullscreen state changes automatically
+  useEffect(() => {
+    const handleFsChange = () => {
+      const isFs = Boolean(document.fullscreenElement);
+      setIsFullscreen(isFs);
+      setAreControlsVisible(true);
+    };
+
+    document.addEventListener('fullscreenchange', handleFsChange);
+    return () => document.removeEventListener('fullscreenchange', handleFsChange);
+  }, []);
 
   // Keyboard navigation & remote control
   useEffect(() => {
@@ -254,7 +271,12 @@ export default function VideoPlayer() {
       if (!activePlayingItem) return;
 
       if (e.key === 'Escape') {
-        handleCleanExit();
+        if (document.fullscreenElement) {
+          document.exitFullscreen().catch(() => {});
+          setAreControlsVisible(true);
+        } else {
+          handleCleanExit();
+        }
       } else if (e.key === 'f' || e.key === 'F') {
         toggleFullscreen();
       } else if (e.key === 'n' || e.key === 'N') {
@@ -409,18 +431,19 @@ export default function VideoPlayer() {
           areControlsVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'
         }`}
       >
-        {/* Left: Minimal Circular Back Button & Compact Title */}
+        {/* Left: Prominent Back to Main Page Button & Compact Title */}
         <div className="flex items-center space-x-3">
           <button
             onClick={handleCleanExit}
-            className="w-8 h-8 rounded-full bg-black/60 hover:bg-neutral-800 text-white flex items-center justify-center border border-white/15 shadow-md transition-transform hover:scale-105 active:scale-95 group"
-            aria-label="Back to Browse"
-            title="Back to Browse (Esc)"
+            className="flex items-center space-x-2 px-3 py-1.5 rounded-full bg-netflix-red/90 hover:bg-netflix-red text-white border border-red-500/40 shadow-lg shadow-red-950/40 transition-all hover:scale-105 active:scale-95 group cursor-pointer pointer-events-auto"
+            aria-label="Back to Main Page"
+            title="Return to Main Page to Browse Movies (Esc)"
           >
-            <ArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
+            <ArrowLeft className="w-3.5 h-3.5 group-hover:-translate-x-0.5 transition-transform text-white" />
+            <span className="text-xs font-bold tracking-wide">Main Page</span>
           </button>
 
-          <div className="flex items-baseline space-x-2 max-w-sm sm:max-w-md truncate">
+          <div className="flex items-baseline space-x-2 max-w-xs sm:max-w-sm md:max-w-md truncate">
             <h2 className="text-xs sm:text-sm font-bold text-white uppercase tracking-tight truncate">
               {activePlayingItem.title}
             </h2>
@@ -562,6 +585,28 @@ export default function VideoPlayer() {
         </div>
       </div>
 
+      {/* Top Hover Wake-up Trigger: Hovering near top immediately reveals controls */}
+      <div
+        onMouseEnter={() => setAreControlsVisible(true)}
+        className="absolute top-0 inset-x-0 h-14 z-30 pointer-events-auto"
+      />
+
+      {/* Persistent Floating "Main Page" Button (Always visible and accessible even when controls auto-hide) */}
+      <div
+        className={`absolute top-3 left-4 z-40 transition-opacity duration-300 ${
+          areControlsVisible ? 'opacity-0 pointer-events-none' : 'opacity-85 hover:opacity-100 pointer-events-auto'
+        }`}
+      >
+        <button
+          onClick={handleCleanExit}
+          className="flex items-center space-x-1.5 px-3.5 py-1.5 rounded-full bg-black/85 hover:bg-neutral-900 text-white border border-white/25 shadow-2xl backdrop-blur-md hover:scale-105 active:scale-95 transition-all text-xs font-bold cursor-pointer"
+          title="Return to Main Page to Browse Movies (Esc)"
+        >
+          <ArrowLeft className="w-3.5 h-3.5 text-netflix-red" />
+          <span>Main Page</span>
+        </button>
+      </div>
+
       {/* Floating Status Toast (Auto-Failover Alert) */}
       {toastMessage && (
         <div className="absolute top-16 z-50 px-3.5 py-1.5 rounded-full bg-black/90 border border-white/20 text-white text-xs font-semibold backdrop-blur-md shadow-2xl flex items-center space-x-2 animate-in fade-in slide-in-from-top-2 duration-200">
@@ -573,11 +618,11 @@ export default function VideoPlayer() {
       {/* Ephemeral Keyboard Guide (Fades out automatically) */}
       {showKeyboardGuide && (
         <div className="absolute bottom-6 z-40 px-3 py-1 rounded-full bg-black/75 border border-white/15 text-neutral-300 text-[10px] backdrop-blur-md shadow-lg flex items-center space-x-2 transition-opacity duration-700 pointer-events-none">
+          <span className="font-mono text-white">[Esc]</span> Main Page •
+          <span className="font-mono text-white">[F]</span> Fullscreen •
           <span className="font-mono text-white">[N]</span> Next Server •
           <span className="font-mono text-white">[S]</span> Shield Mode •
-          <span className="font-mono text-white">[F]</span> Fullscreen •
-          <span className="font-mono text-white">[←/→]</span> Prev/Next Ep •
-          <span className="font-mono text-white">[Esc]</span> Exit
+          <span className="font-mono text-white">[←/→]</span> Prev/Next Ep
         </div>
       )}
 
