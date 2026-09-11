@@ -1,6 +1,5 @@
 import { MediaItem, CategoryRow, Season, Episode } from '../types/media';
 import { BILLBOARD_ITEM, CATEGORY_ROWS, ALL_MEDIA_ITEMS, TANGERINES_ITEM } from './mockData';
-import { getScrapedNetflixMedia } from './apifyService';
 
 const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
 const IMAGE_BASE_ORIGINAL = 'https://image.tmdb.org/t/p/original';
@@ -263,34 +262,32 @@ export async function getTvSeasons(tmdbId: number): Promise<Season[]> {
 
 export async function getBillboardMedia(): Promise<MediaItem> {
   try {
-    const data = await fetchTmdb<{ results?: any[] }>('/trending/movie/week');
+    const data = await fetchTmdb<{ results?: any[] }>('/movie/now_playing');
     if (data?.results && data.results.length > 0) {
-      const topItem =
-        data.results.find((i: any) => i.backdrop_path && i.overview && i.overview.length > 50) ||
-        data.results[0];
-      const media = transformTmdbItem(topItem, 0, false);
-      media.top10Rank = 1;
-      media.isOriginal = true;
-
-      const trailerKey = await getTmdbTrailerKey(topItem.id, 'movie');
-      if (trailerKey) {
-        media.youtubeKey = trailerKey;
+      const topItem = data.results.find(
+        (i: any) => i.backdrop_path && i.poster_path && i.vote_count > 1500 && i.vote_average >= 7.0
+      );
+      if (topItem) {
+        const media = transformTmdbItem(topItem, 0, false);
+        media.top10Rank = 1;
+        const trailerKey = await getTmdbTrailerKey(topItem.id, 'movie');
+        if (trailerKey) {
+          media.youtubeKey = trailerKey;
+          media.trailerUrl = `https://www.youtube-nocookie.com/embed/${trailerKey}?autoplay=1&mute=0&controls=1&rel=0&modestbranding=1`;
+        }
+        return media;
       }
-      return media;
     }
   } catch (error) {
-    console.warn('Error fetching TMDB billboard media, using local fallback:', error);
+    console.warn('Error fetching live billboard, defaulting to verified viral blockbuster:', error);
   }
   return BILLBOARD_ITEM;
 }
 
 /**
- * Returns dynamic category shelves with:
- * 1. Live Apify Scraper Exclusives
- * 2. Strict cross-row deduplication so NO movie title is ever repeated across rows
- * 3. Prominent feature of user-curated titles like Tangerines
+ * Returns dynamic category shelves populated with authentic viral blockbusters and Netflix sensations
  */
-export async function getContentRows(customApifyDatasetId?: string): Promise<CategoryRow[]> {
+export async function getContentRows(): Promise<CategoryRow[]> {
   try {
     const [
       trendingData,
@@ -298,24 +295,16 @@ export async function getContentRows(customApifyDatasetId?: string): Promise<Cat
       popularTvData,
       actionData,
       scifiData,
-      dramaData,
-      animationData,
-      apifyItems,
     ] = await Promise.all([
       fetchTmdb<{ results: any[] }>('/trending/all/week'),
       fetchTmdb<{ results: any[] }>('/movie/top_rated'),
       fetchTmdb<{ results: any[] }>('/tv/popular'),
-      fetchTmdb<{ results: any[] }>('/discover/movie', { with_genres: 28, sort_by: 'popularity.desc' }),
-      fetchTmdb<{ results: any[] }>('/discover/movie', { with_genres: 878, sort_by: 'popularity.desc' }),
-      fetchTmdb<{ results: any[] }>('/discover/movie', { with_genres: 18, sort_by: 'popularity.desc' }),
-      fetchTmdb<{ results: any[] }>('/discover/tv', { with_genres: 16, sort_by: 'popularity.desc' }),
-      getScrapedNetflixMedia(customApifyDatasetId),
+      fetchTmdb<{ results: any[] }>('/discover/movie', { with_genres: 28, sort_by: 'vote_count.desc' }),
+      fetchTmdb<{ results: any[] }>('/discover/movie', { with_genres: 878, sort_by: 'vote_count.desc' }),
     ]);
 
     const seenIds = new Set<string | number>();
     const seenTitles = new Set<string>();
-
-    const rows: CategoryRow[] = [];
 
     const registerSeen = (id: string | number, title: string) => {
       seenIds.add(id);
@@ -329,34 +318,16 @@ export async function getContentRows(customApifyDatasetId?: string): Promise<Cat
       return !!norm && seenTitles.has(norm);
     };
 
-    // 1. Apify Live Scraper Shelf
-    if (apifyItems && apifyItems.length > 0) {
-      const uniqueApify: MediaItem[] = [];
-      for (const item of apifyItems) {
-        if (!isSeen(item.id, item.title)) {
-          registerSeen(item.id, item.title);
-          if (item.tmdbId) registerSeen(item.tmdbId, item.title);
-          uniqueApify.push(item);
-        }
-      }
-
-      if (uniqueApify.length > 0) {
-        rows.push({
-          id: 'apify-netflix-originals',
-          title: 'Live Scraped Exclusives (Apify Engine)',
-          items: uniqueApify,
-        });
-      }
-    }
-
-    // Helper to extract unique items for each TMDB row with cross-shelf deduplication
-    const extractUnique = (rawList: any[] | undefined, isTv: boolean = false, maxItems: number = 12): MediaItem[] => {
+    // Filter to guarantee high quality: require backdrop, poster, and minimum vote count (no slop or unreleased concepts)
+    const extractUnique = (rawList: any[] | undefined, isTv: boolean = false, maxItems: number = 10): MediaItem[] => {
       if (!rawList || !Array.isArray(rawList)) return [];
       const out: MediaItem[] = [];
       for (const raw of rawList) {
         const title = raw.title || raw.name || raw.original_title || raw.original_name || '';
         const id = raw.id;
-        if (!id || !title || isSeen(id, title)) continue;
+        if (!id || !title || !raw.backdrop_path || !raw.poster_path) continue;
+        if (raw.vote_count !== undefined && raw.vote_count < 100) continue;
+        if (isSeen(id, title)) continue;
         registerSeen(id, title);
         out.push(transformTmdbItem(raw, out.length, isTv));
         if (out.length >= maxItems) break;
@@ -364,103 +335,93 @@ export async function getContentRows(customApifyDatasetId?: string): Promise<Cat
       return out;
     };
 
-    // 2. Trending Now
-    if (trendingData?.results?.length) {
-      const items = extractUnique(trendingData.results, false, 12);
-      if (items.length > 0) {
-        rows.push({
-          id: 'trending-now',
-          title: 'Trending Now',
-          items,
-        });
-      }
-    }
+    const rows: CategoryRow[] = [];
 
-    // 3. Top 10 in Movies Today
-    if (topRatedData?.results?.length) {
-      const items = extractUnique(topRatedData.results, false, 10);
-      if (items.length > 0) {
-        items.forEach((item, idx) => {
-          item.top10Rank = idx + 1;
-        });
-        rows.push({
-          id: 'top-10-movies',
-          title: 'Top 10 in Movies Today',
-          isTop10: true,
-          items,
-        });
+    // Row 1: Trending on Netflix & Viral Hits
+    const baseTrending = CATEGORY_ROWS[0]?.items || [];
+    const primeTrending: MediaItem[] = [];
+    for (const v of baseTrending) {
+      if (!isSeen(v.id, v.title)) {
+        registerSeen(v.id, v.title);
+        if (v.tmdbId) registerSeen(v.tmdbId, v.title);
+        primeTrending.push(v);
       }
     }
+    const dynamicTrending = extractUnique(trendingData?.results, false, 8);
+    rows.push({
+      id: 'trending-now',
+      title: 'Trending on Netflix & Viral Hits',
+      items: [...primeTrending, ...dynamicTrending],
+    });
 
-    // 4. Popular TV Series
-    if (popularTvData?.results?.length) {
-      const items = extractUnique(popularTvData.results, true, 12);
-      if (items.length > 0) {
-        rows.push({
-          id: 'popular-tv',
-          title: 'Popular TV Series',
-          items,
-        });
-      }
+    // Row 2: Top 10 Movies Today
+    const baseTop10 = CATEGORY_ROWS[1]?.items || [];
+    for (const v of baseTop10) {
+      registerSeen(v.id, v.title);
+      if (v.tmdbId) registerSeen(v.tmdbId, v.title);
     }
+    rows.push({
+      id: 'top-10-movies',
+      title: 'Top 10 Movies & Series Today',
+      isTop10: true,
+      items: baseTop10,
+    });
 
-    // 5. Action & Adventure Blockbusters
-    if (actionData?.results?.length) {
-      const items = extractUnique(actionData.results, false, 12);
-      if (items.length > 0) {
-        rows.push({
-          id: 'action-movies',
-          title: 'Action & Adventure Blockbusters',
-          items,
-        });
+    // Row 3: Netflix Flagship & Global Sensation Series
+    const baseSeries = CATEGORY_ROWS[2]?.items || [];
+    const primeSeries: MediaItem[] = [];
+    for (const v of baseSeries) {
+      if (!isSeen(v.id, v.title)) {
+        registerSeen(v.id, v.title);
+        if (v.tmdbId) registerSeen(v.tmdbId, v.title);
+        primeSeries.push(v);
       }
     }
+    const dynamicTv = extractUnique(popularTvData?.results, true, 8);
+    rows.push({
+      id: 'netflix-flagship',
+      title: 'Netflix Flagship & Global Sensation Series',
+      items: [...primeSeries, ...dynamicTv],
+    });
 
-    // 6. Sci-Fi & Cyberpunk
-    if (scifiData?.results?.length) {
-      const items = extractUnique(scifiData.results, false, 12);
-      if (items.length > 0) {
-        rows.push({
-          id: 'scifi-movies',
-          title: 'Sci-Fi & Cyberpunk',
-          items,
-        });
+    // Row 4: Action & Sci-Fi Blockbusters
+    const baseAction = CATEGORY_ROWS[3]?.items || [];
+    const primeAction: MediaItem[] = [];
+    for (const v of baseAction) {
+      if (!isSeen(v.id, v.title)) {
+        registerSeen(v.id, v.title);
+        if (v.tmdbId) registerSeen(v.tmdbId, v.title);
+        primeAction.push(v);
       }
     }
+    const dynamicAction = extractUnique(actionData?.results, false, 6);
+    const dynamicScifi = extractUnique(scifiData?.results, false, 6);
+    rows.push({
+      id: 'action-scifi',
+      title: 'Action & Sci-Fi Blockbusters',
+      items: [...primeAction, ...dynamicAction, ...dynamicScifi],
+    });
 
-    // 7. Critically Acclaimed Dramas (featuring Tangerines!)
-    if (dramaData?.results?.length) {
-      const items = extractUnique(dramaData.results, false, 12);
-      // Ensure Tangerines is included in drama row if not already seen
-      if (!isSeen(TANGERINES_ITEM.id, TANGERINES_ITEM.title) && (!TANGERINES_ITEM.tmdbId || !isSeen(TANGERINES_ITEM.tmdbId, TANGERINES_ITEM.title))) {
-        registerSeen(TANGERINES_ITEM.id, TANGERINES_ITEM.title);
-        if (TANGERINES_ITEM.tmdbId) registerSeen(TANGERINES_ITEM.tmdbId, TANGERINES_ITEM.title);
-        items.unshift(TANGERINES_ITEM);
-      }
-      if (items.length > 0) {
-        rows.push({
-          id: 'acclaimed-dramas',
-          title: 'Critically Acclaimed Dramas',
-          items,
-        });
+    // Row 5: Critically Acclaimed Masterpieces
+    const baseAcclaimed = CATEGORY_ROWS[4]?.items || [];
+    const primeAcclaimed: MediaItem[] = [];
+    for (const v of baseAcclaimed) {
+      if (!isSeen(v.id, v.title)) {
+        registerSeen(v.id, v.title);
+        if (v.tmdbId) registerSeen(v.tmdbId, v.title);
+        primeAcclaimed.push(v);
       }
     }
-
-    // 8. Animation & Speculative Series
-    if (animationData?.results?.length) {
-      const items = extractUnique(animationData.results, true, 12);
-      if (items.length > 0) {
-        rows.push({
-          id: 'animation-series',
-          title: 'Animation & Speculative Series',
-          items,
-        });
-      }
-    }
+    const dynamicTopRated = extractUnique(topRatedData?.results, false, 8);
+    rows.push({
+      id: 'critically-acclaimed',
+      title: 'Critically Acclaimed Masterpieces',
+      items: [...primeAcclaimed, ...dynamicTopRated],
+    });
 
     if (rows.length > 0) return rows;
   } catch (error) {
-    console.warn('Error fetching live content rows, falling back to local dataset:', error);
+    console.warn('Error fetching live content rows, falling back to curated blockbusters:', error);
   }
 
   return CATEGORY_ROWS;

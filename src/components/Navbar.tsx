@@ -13,7 +13,6 @@ export default function Navbar() {
     setActiveProfile,
     activeNav,
     setActiveNav,
-    setIsApiModalOpen,
     lockStudio,
   } = useApp();
 
@@ -106,18 +105,8 @@ export default function Navbar() {
         </ul>
       </div>
 
-      {/* Right section: API Engine, Search, Notifications, Profile */}
+      {/* Right section: Search, Notifications, Profile */}
       <div className="flex items-center space-x-3 sm:space-x-4 md:space-x-6 text-white text-sm">
-        {/* API Engine Quality Switcher Button */}
-        <button
-          onClick={() => setIsApiModalOpen(true)}
-          className="flex items-center space-x-1.5 px-2.5 py-1 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-neutral-200 hover:text-white text-xs transition-all shadow-sm group"
-          title="Configure & Test API Engines (TMDB + Apify)"
-        >
-          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse group-hover:scale-110 transition-transform" />
-          <span className="font-semibold text-[11px] tracking-wide uppercase">API Engine</span>
-        </button>
-
         {/* Animated Search Bar */}
         <div className="relative flex items-center">
           <div

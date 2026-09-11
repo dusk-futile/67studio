@@ -8,7 +8,6 @@ import MediaDetailModal from '../components/MediaDetailModal';
 import VideoPlayer from '../components/VideoPlayer';
 import SearchOverlay from '../components/SearchOverlay';
 import Footer from '../components/Footer';
-import ApiSettingsModal from '../components/ApiSettingsModal';
 import PasswordGate from '../components/PasswordGate';
 import { useApp } from '../context/AppContext';
 import { getBillboardMedia, getContentRows } from '../services/mediaService';
@@ -20,10 +19,6 @@ export default function Home() {
     searchQuery,
     activeNav,
     myList,
-    isApiModalOpen,
-    setIsApiModalOpen,
-    apifyDatasetId,
-    setApifyDatasetId,
     isWhitelisted,
     isAuthChecking,
   } = useApp();
@@ -31,12 +26,12 @@ export default function Home() {
   const [contentRows, setContentRows] = useState<CategoryRow[]>(CATEGORY_ROWS);
   const [isLoading, setIsLoading] = useState(true);
 
-  const loadData = async (datasetIdToUse?: string) => {
+  const loadData = async () => {
     try {
       setIsLoading(true);
       const [billboard, rows] = await Promise.all([
         getBillboardMedia(),
-        getContentRows(datasetIdToUse || apifyDatasetId),
+        getContentRows(),
       ]);
       setBillboardItem(billboard);
       setContentRows(rows);
@@ -49,9 +44,9 @@ export default function Home() {
 
   useEffect(() => {
     if (isWhitelisted) {
-      loadData(apifyDatasetId);
+      loadData();
     }
-  }, [apifyDatasetId, isWhitelisted]);
+  }, [isWhitelisted]);
 
 
   // Filter rows based on active nav selection
@@ -164,15 +159,6 @@ export default function Home() {
       {/* Global Interactive Overlays */}
       <MediaDetailModal />
       <VideoPlayer />
-      <ApiSettingsModal
-        isOpen={isApiModalOpen}
-        onClose={() => setIsApiModalOpen(false)}
-        currentDatasetId={apifyDatasetId}
-        onApplyDataset={(newId) => {
-          setApifyDatasetId(newId);
-          loadData(newId);
-        }}
-      />
 
       {/* Netflix Authentic Footer */}
       <Footer />
