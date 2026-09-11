@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import { MediaItem, Season } from '../types/media';
 import { useApp } from '../context/AppContext';
-import { getSimilarMedia } from '../services/mediaService';
+import { getSimilarMedia, getTvSeasons } from '../services/mediaService';
 
 export default function MediaDetailModal() {
   const {
@@ -26,6 +26,8 @@ export default function MediaDetailModal() {
 
   const [similarItems, setSimilarItems] = useState<MediaItem[]>([]);
   const [selectedSeasonIndex, setSelectedSeasonIndex] = useState(0);
+  const [liveSeasons, setLiveSeasons] = useState<Season[]>([]);
+  const [isLoadingSeasons, setIsLoadingSeasons] = useState(false);
   const [isMuted, setIsMuted] = useState(true);
   const [isLiked, setIsLiked] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -34,6 +36,29 @@ export default function MediaDetailModal() {
     if (activeModalItem) {
       getSimilarMedia(activeModalItem.id).then(setSimilarItems);
       setSelectedSeasonIndex(0);
+
+      // Fetch all real live seasons and episodes from TMDB if this is a TV series
+      if (activeModalItem.type === 'tv' && activeModalItem.tmdbId) {
+        setIsLoadingSeasons(true);
+        getTvSeasons(activeModalItem.tmdbId)
+          .then((seasons) => {
+            if (seasons && seasons.length > 0) {
+              setLiveSeasons(seasons);
+            } else {
+              setLiveSeasons(activeModalItem.seasons || []);
+            }
+            setIsLoadingSeasons(false);
+          })
+          .catch(() => {
+            setLiveSeasons(activeModalItem.seasons || []);
+            setIsLoadingSeasons(false);
+          });
+      } else {
+        setLiveSeasons(activeModalItem.seasons || []);
+        setIsLoadingSeasons(false);
+      }
+    } else {
+      setLiveSeasons([]);
     }
   }, [activeModalItem]);
 
@@ -52,8 +77,8 @@ export default function MediaDetailModal() {
   if (!activeModalItem) return null;
 
   const inList = isInMyList(activeModalItem.id);
-  const seasons: Season[] = activeModalItem.seasons || [];
-  const currentSeason = seasons[selectedSeasonIndex];
+  const seasons: Season[] = liveSeasons.length > 0 ? liveSeasons : (activeModalItem.seasons || []);
+  const currentSeason = seasons[selectedSeasonIndex] || seasons[0];
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-black/85 backdrop-blur-md flex justify-center p-0 sm:p-4 md:p-8 animate-in fade-in duration-200">
@@ -105,7 +130,14 @@ export default function MediaDetailModal() {
                 <button
                   onClick={() => {
                     closeDetailModal();
-                    playMedia(activeModalItem);
+                    const sNum = currentSeason?.seasonNumber || 1;
+                    const epNum = currentSeason?.episodes[0]?.episodeNumber || 1;
+                    playMedia({
+                      ...activeModalItem,
+                      selectedSeason: sNum,
+                      selectedEpisode: epNum,
+                      seasons,
+                    });
                   }}
                   className="flex items-center space-x-2 bg-white hover:bg-neutral-200 text-black font-bold px-6 py-2 rounded transition-all hover:scale-105 active:scale-95 shadow-xl"
                 >
@@ -210,10 +242,15 @@ export default function MediaDetailModal() {
           </div>
 
           {/* Episode Browser (If TV Show) */}
-          {seasons.length > 0 && currentSeason && (
+          {activeModalItem.type === 'tv' && (
             <div className="space-y-4 pt-4 border-t border-neutral-800">
               <div className="flex items-center justify-between">
-                <h3 className="text-xl font-bold text-white">Episodes</h3>
+                <div className="flex items-center space-x-2">
+                  <h3 className="text-xl font-bold text-white">Episodes</h3>
+                  {isLoadingSeasons && (
+                    <span className="text-xs text-neutral-400 animate-pulse">Loading all seasons from TMDB...</span>
+                  )}
+                </div>
                 {seasons.length > 1 && (
                   <div className="relative">
                     <select
@@ -223,7 +260,7 @@ export default function MediaDetailModal() {
                     >
                       {seasons.map((season, idx) => (
                         <option key={season.seasonNumber} value={idx}>
-                          {season.title}
+                          {season.title} ({season.episodes?.length || 0} Episodes)
                         </option>
                       ))}
                     </select>
@@ -233,24 +270,27 @@ export default function MediaDetailModal() {
               </div>
 
               {/* Episode List */}
-              <div className="divide-y divide-neutral-800">
-                {currentSeason.episodes.map((episode) => (
-                  <div
-                    key={episode.id}
-                    onClick={() => {
-                      closeDetailModal();
-                      playMedia({
-                        ...activeModalItem,
-                        title: `${activeModalItem.title}: ${episode.title}`,
-                        videoUrl: episode.videoUrl,
-                        overview: episode.overview,
-                      });
-                    }}
-                    className="py-4 flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-4 p-3 hover:bg-neutral-900 rounded cursor-pointer transition-colors group"
-                  >
-                    <span className="text-base font-bold text-neutral-400 w-6">
-                      {episode.episodeNumber}
-                    </span>
+              {currentSeason ? (
+                <div className="divide-y divide-neutral-800">
+                  {currentSeason.episodes.map((episode) => (
+                    <div
+                      key={episode.id}
+                      onClick={() => {
+                        closeDetailModal();
+                        playMedia({
+                          ...activeModalItem,
+                          selectedSeason: currentSeason.seasonNumber,
+                          selectedEpisode: episode.episodeNumber,
+                          seasons,
+                          title: `${activeModalItem.title}: S${currentSeason.seasonNumber}E${episode.episodeNumber} - ${episode.title}`,
+                          overview: episode.overview,
+                        });
+                      }}
+                      className="py-4 flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-4 p-3 hover:bg-neutral-900 rounded cursor-pointer transition-colors group"
+                    >
+                      <span className="text-base font-bold text-neutral-400 w-6">
+                        {episode.episodeNumber}
+                      </span>
 
                     {/* Thumbnail with play hover */}
                     <div className="relative w-36 sm:w-44 aspect-video rounded overflow-hidden bg-neutral-950 flex-shrink-0 border border-white/5">
@@ -288,8 +328,13 @@ export default function MediaDetailModal() {
                   </div>
                 ))}
               </div>
-            </div>
-          )}
+            ) : (
+              <div className="py-8 text-center text-neutral-500 text-xs">
+                {isLoadingSeasons ? 'Loading episodes from TMDB...' : 'No episodes available for this season.'}
+              </div>
+            )}
+          </div>
+        )}
 
           {/* "More Like This" Section */}
           {similarItems.length > 0 && (

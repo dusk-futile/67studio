@@ -78,8 +78,8 @@ export default function VideoPlayer() {
 
     setIsLoading(true);
     setActiveServer('vidlove');
-    setSeason(1);
-    setEpisode(1);
+    setSeason(activePlayingItem.selectedSeason || 1);
+    setEpisode(activePlayingItem.selectedEpisode || 1);
     setAreControlsVisible(true);
 
     if (activePlayingItem.youtubeKey) {
@@ -273,11 +273,15 @@ export default function VideoPlayer() {
                   value={season}
                   onChange={(e) => {
                     setSeason(Number(e.target.value));
+                    setEpisode(1);
                     setIsLoading(true);
                   }}
                   className="bg-transparent text-white font-bold focus:outline-none cursor-pointer"
                 >
-                  {[1, 2, 3, 4, 5, 6].map((s) => (
+                  {(activePlayingItem.seasons && activePlayingItem.seasons.length > 0
+                    ? activePlayingItem.seasons.map((s) => s.seasonNumber)
+                    : [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+                  ).map((s) => (
                     <option key={s} value={s} className="bg-neutral-900 text-white">
                       {s}
                     </option>
@@ -295,7 +299,10 @@ export default function VideoPlayer() {
                   }}
                   className="bg-transparent text-white font-bold focus:outline-none cursor-pointer"
                 >
-                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((ep) => (
+                  {(
+                    activePlayingItem.seasons?.find((s) => s.seasonNumber === season)?.episodes.map((ep) => ep.episodeNumber) ||
+                    Array.from({ length: 24 }, (_, i) => i + 1)
+                  ).map((ep) => (
                     <option key={ep} value={ep} className="bg-neutral-900 text-white">
                       {ep}
                     </option>

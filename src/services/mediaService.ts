@@ -1,4 +1,4 @@
-import { MediaItem, CategoryRow } from '../types/media';
+import { MediaItem, CategoryRow, Season, Episode } from '../types/media';
 import { BILLBOARD_ITEM, CATEGORY_ROWS, ALL_MEDIA_ITEMS, TANGERINES_ITEM } from './mockData';
 import { getScrapedNetflixMedia } from './apifyService';
 
@@ -210,6 +210,55 @@ export async function getTmdbTrailerKey(tmdbId: number, type: 'movie' | 'tv'): P
     console.warn('Failed to fetch trailer key from TMDB:', e);
   }
   return undefined;
+}
+
+const TV_SEASONS_CACHE = new Map<number, Season[]>();
+
+/**
+ * Fetches real, live TV series seasons and episodes from TMDB
+ */
+export async function getTvSeasons(tmdbId: number): Promise<Season[]> {
+  if (TV_SEASONS_CACHE.has(tmdbId)) {
+    return TV_SEASONS_CACHE.get(tmdbId)!;
+  }
+
+  try {
+    const show = await fetchTmdb<any>(`/tv/${tmdbId}`);
+    if (!show || !show.seasons || !Array.isArray(show.seasons)) return [];
+
+    // Filter out specials (season 0) unless it is the only season
+    const validSeasons = show.seasons.filter((s: any) => s.season_number > 0);
+    const seasonsToLoad = validSeasons.length > 0 ? validSeasons : show.seasons;
+
+    const seasonPromises = seasonsToLoad.map(async (s: any) => {
+      const seasonData = await fetchTmdb<any>(`/tv/${tmdbId}/season/${s.season_number}`);
+      const episodes: Episode[] = (seasonData?.episodes || []).map((ep: any) => ({
+        id: `ep-${tmdbId}-${s.season_number}-${ep.episode_number}`,
+        episodeNumber: ep.episode_number,
+        title: ep.name || `Episode ${ep.episode_number}`,
+        overview: ep.overview || 'Stream this acclaimed episode in Ultra HD on 67studio.',
+        duration: ep.runtime ? `${ep.runtime}m` : '52m',
+        thumbnailUrl: ep.still_path
+          ? `${IMAGE_BASE_W780}${ep.still_path}`
+          : (show.backdrop_path ? `${IMAGE_BASE_ORIGINAL}${show.backdrop_path}` : 'https://images.unsplash.com/photo-1509198397868-475647b2a1e5?auto=format&fit=crop&w=1920&q=85'),
+        videoUrl: `https://player.vidlove.cc/embed/tv/${tmdbId}/${s.season_number}/${ep.episode_number}?autoplay=true&primarycolor=e50914&server=Dark`,
+        progressPercent: Math.floor(Math.random() * 50) + 20,
+      }));
+
+      return {
+        seasonNumber: s.season_number,
+        title: s.name || `Season ${s.season_number}`,
+        episodes,
+      };
+    });
+
+    const seasons = await Promise.all(seasonPromises);
+    TV_SEASONS_CACHE.set(tmdbId, seasons);
+    return seasons;
+  } catch (err) {
+    console.warn(`Failed to fetch seasons for TV show ${tmdbId}:`, err);
+    return [];
+  }
 }
 
 export async function getBillboardMedia(): Promise<MediaItem> {

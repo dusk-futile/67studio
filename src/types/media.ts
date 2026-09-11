@@ -44,6 +44,8 @@ export interface MediaItem {
   subtitles?: string[];
   seasons?: Season[];
   isOriginal?: boolean;
+  selectedSeason?: number;
+  selectedEpisode?: number;
 }
 
 export interface CategoryRow {
