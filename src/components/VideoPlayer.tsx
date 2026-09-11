@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   ArrowLeft,
   Server,
@@ -8,12 +8,25 @@ import {
   Maximize,
   Minimize,
   ChevronDown,
-  ShieldCheck,
+  RotateCcw,
+  Sparkles,
+  Shield,
+  Layers,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { getTmdbTrailerKey } from '../services/mediaService';
 
 type ServerType = 'vidlove' | 'vidzen' | 'server1' | 'server2' | 'server3' | 'server4' | 'trailer' | 'direct';
+
+const FALLBACK_CHAIN: ServerType[] = [
+  'vidlove',  // 1: VidLove HD (MovieDB primary)
+  'vidzen',   // 2: VidZen Ultra (MovieDB secondary)
+  'server1',  // 3: AutoEmbed Clean
+  'server2',  // 4: VidLink HD
+  'server3',  // 5: MultiEmbed
+  'server4',  // 6: 2Embed
+  'trailer',  // 7: Pure Cinema 4K
+];
 
 export default function VideoPlayer() {
   const { activePlayingItem, stopMedia } = useApp();
@@ -25,11 +38,44 @@ export default function VideoPlayer() {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showServerMenu, setShowServerMenu] = useState(false);
   const [areControlsVisible, setAreControlsVisible] = useState(true);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [showKeyboardGuide, setShowKeyboardGuide] = useState(true);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const hideTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const toastTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const loadingFailoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isCleanExitRef = useRef(false);
+
+  const serverOptions: Array<{ id: ServerType; label: string; tag: string }> = [
+    { id: 'vidlove', label: 'Server 1: VidLove HD', tag: 'MovieDB Primary' },
+    { id: 'vidzen', label: 'Server 2: VidZen Ultra', tag: 'MovieDB Fast' },
+    { id: 'server1', label: 'Server 3: AutoEmbed', tag: 'Ad-Block Strict' },
+    { id: 'server2', label: 'Server 4: VidLink HD', tag: 'High Bitrate' },
+    { id: 'server3', label: 'Server 5: MultiEmbed', tag: 'Multi-Source' },
+    { id: 'server4', label: 'Server 6: 2Embed', tag: 'Fallback' },
+    { id: 'trailer', label: 'Pure Cinema 4K', tag: '100% Zero Ads' },
+    { id: 'direct', label: 'Direct Native Stream', tag: 'HTML5 Video' },
+  ];
+
+  const showToast = useCallback((msg: string) => {
+    setToastMessage(msg);
+    if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
+    toastTimeoutRef.current = setTimeout(() => {
+      setToastMessage(null);
+    }, 2800);
+  }, []);
+
+  // Automatic Server Failover Switcher
+  const handleNextServer = useCallback((reason?: string) => {
+    const currentIndex = FALLBACK_CHAIN.indexOf(activeServer);
+    const nextIndex = (currentIndex + 1) % FALLBACK_CHAIN.length;
+    const nextSrv = FALLBACK_CHAIN[nextIndex];
+    setActiveServer(nextSrv);
+    setIsLoading(true);
+    showToast(reason || `Auto-switching to ${serverOptions.find((s) => s.id === nextSrv)?.label}...`);
+  }, [activeServer, serverOptions, showToast]);
 
   // Anti-Redirect and Host Window Shield Engine
   useEffect(() => {
@@ -37,10 +83,10 @@ export default function VideoPlayer() {
 
     isCleanExitRef.current = false;
 
-    // 1. Intercept programmatic popup / new-tab window.open attempts on the parent window
+    // 1. Intercept programmatic popup / new-tab window.open attempts on parent window
     const originalOpen = window.open;
     window.open = function (...args: any[]) {
-      console.warn('[67studio Shield] Prevented ad popup attempt:', args);
+      console.warn('[67studio Shield] Neutralized external ad popup attempt:', args);
       return null;
     };
 
@@ -59,7 +105,7 @@ export default function VideoPlayer() {
         if (document.activeElement?.tagName !== 'IFRAME') {
           window.focus();
         }
-      }, 100);
+      }, 80);
     };
 
     window.addEventListener('beforeunload', handleBeforeUnload);
@@ -81,6 +127,11 @@ export default function VideoPlayer() {
     setSeason(activePlayingItem.selectedSeason || 1);
     setEpisode(activePlayingItem.selectedEpisode || 1);
     setAreControlsVisible(true);
+    setShowKeyboardGuide(true);
+
+    const guideTimer = setTimeout(() => {
+      setShowKeyboardGuide(false);
+    }, 3500);
 
     if (activePlayingItem.youtubeKey) {
       setYoutubeKey(activePlayingItem.youtubeKey);
@@ -91,9 +142,30 @@ export default function VideoPlayer() {
     } else {
       setYoutubeKey(undefined);
     }
+
+    return () => clearTimeout(guideTimer);
   }, [activePlayingItem]);
 
-  // Clean auto-hide: fades out all controls & hides cursor after 2.5s of mouse idle
+  // Automatic Timeout Failover: If server is stuck loading for > 8s, auto-failover to next server
+  useEffect(() => {
+    if (!activePlayingItem || !isLoading || activeServer === 'trailer' || activeServer === 'direct') return;
+
+    if (loadingFailoverTimeoutRef.current) {
+      clearTimeout(loadingFailoverTimeoutRef.current);
+    }
+
+    loadingFailoverTimeoutRef.current = setTimeout(() => {
+      if (isLoading) {
+        handleNextServer('Server taking too long. Auto-switching to backup stream...');
+      }
+    }, 8500);
+
+    return () => {
+      if (loadingFailoverTimeoutRef.current) clearTimeout(loadingFailoverTimeoutRef.current);
+    };
+  }, [activePlayingItem, isLoading, activeServer, handleNextServer]);
+
+  // Minimalist auto-hide: fades out all controls & cursor after 1.5s of mouse idle
   const handleMouseMove = () => {
     setAreControlsVisible(true);
     if (hideTimeoutRef.current) {
@@ -102,7 +174,7 @@ export default function VideoPlayer() {
     hideTimeoutRef.current = setTimeout(() => {
       setAreControlsVisible(false);
       setShowServerMenu(false);
-    }, 2500);
+    }, 1600);
   };
 
   // Clean exit helper to prevent beforeunload prompts when intentionally closing player
@@ -115,26 +187,6 @@ export default function VideoPlayer() {
     stopMedia();
   };
 
-  // Keyboard navigation
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (!activePlayingItem) return;
-      if (e.key === 'Escape') {
-        handleCleanExit();
-      } else if (e.key === 'f') {
-        toggleFullscreen();
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [activePlayingItem]);
-
-  if (!activePlayingItem) return null;
-
-  const tmdbId = activePlayingItem.tmdbId;
-  const isTv = activePlayingItem.type === 'tv';
-
   const toggleFullscreen = () => {
     if (!containerRef.current) return;
     if (!document.fullscreenElement) {
@@ -145,6 +197,37 @@ export default function VideoPlayer() {
       setIsFullscreen(false);
     }
   };
+
+  // Keyboard navigation & remote control
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!activePlayingItem) return;
+
+      if (e.key === 'Escape') {
+        handleCleanExit();
+      } else if (e.key === 'f' || e.key === 'F') {
+        toggleFullscreen();
+      } else if (e.key === 'n' || e.key === 'N') {
+        handleNextServer('Manually switched server.');
+      } else if (e.key === 'ArrowRight' && activePlayingItem.type === 'tv') {
+        setEpisode((prev) => prev + 1);
+        setIsLoading(true);
+        showToast(`Skipped to Episode ${episode + 1}`);
+      } else if (e.key === 'ArrowLeft' && activePlayingItem.type === 'tv' && episode > 1) {
+        setEpisode((prev) => Math.max(1, prev - 1));
+        setIsLoading(true);
+        showToast(`Episode ${episode - 1}`);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [activePlayingItem, episode, handleNextServer, showToast]);
+
+  if (!activePlayingItem) return null;
+
+  const tmdbId = activePlayingItem.tmdbId;
+  const isTv = activePlayingItem.type === 'tv';
 
   const getStreamUrl = (): string => {
     if (!tmdbId) {
@@ -204,16 +287,21 @@ export default function VideoPlayer() {
     activeServer === 'server4' ||
     (activeServer === 'trailer' && !!youtubeKey);
 
-  const serverOptions: Array<{ id: ServerType; label: string }> = [
-    { id: 'vidlove', label: 'Server 1: VidLove HD (MovieDB)' },
-    { id: 'vidzen', label: 'Server 2: VidZen Ultra (MovieDB)' },
-    { id: 'server1', label: 'Server 3: AutoEmbed (Clean Stream)' },
-    { id: 'server2', label: 'Server 4: VidLink HD' },
-    { id: 'server3', label: 'Server 5: MultiEmbed' },
-    { id: 'server4', label: 'Server 6: 2Embed' },
-    { id: 'trailer', label: 'Pure Cinema 4K (100% Ad-Free)' },
-    { id: 'direct', label: 'Direct Native Stream (Zero Ads)' },
-  ];
+  /**
+   * Strict Sandbox Policy to kill screen-click ad popups and prevent redirects:
+   * By omitting 'allow-top-navigation', the iframe can NEVER redirect the user's tab.
+   * By omitting 'allow-popups', any background ad popup attempt on click is killed by the browser.
+   */
+  const getSandboxPolicy = (): string | undefined => {
+    if (activeServer === 'server2') {
+      // VidLink checks for sandbox; omit to prevent anti-sandbox screen
+      return undefined;
+    }
+    // Strict ad-block sandbox for VidLove, VidZen, AutoEmbed, MultiEmbed
+    return 'allow-scripts allow-same-origin allow-forms allow-presentation';
+  };
+
+  const currentSeasonObj = activePlayingItem.seasons?.find((s) => s.seasonNumber === season);
 
   return (
     <div
@@ -223,52 +311,41 @@ export default function VideoPlayer() {
         !areControlsVisible ? 'cursor-none' : 'cursor-default'
       }`}
     >
-      {/* Auto-Hiding Top Navigation Bar */}
+      {/* Ultra-Minimalist Top Navigation Bar */}
       <div
-        className={`absolute top-0 inset-x-0 p-4 sm:p-6 bg-gradient-to-b from-black/90 via-black/40 to-transparent flex items-center justify-between z-40 transition-opacity duration-500 ${
+        className={`absolute top-0 inset-x-0 px-4 sm:px-6 py-3 bg-gradient-to-b from-black/90 via-black/40 to-transparent flex items-center justify-between z-40 transition-opacity duration-300 ${
           areControlsVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'
         }`}
       >
-        <div className="flex items-center space-x-3 sm:space-x-4">
+        {/* Left: Minimal Circular Back Button & Compact Title */}
+        <div className="flex items-center space-x-3">
           <button
             onClick={handleCleanExit}
-            className="flex items-center space-x-2 text-white hover:text-netflix-red transition-all px-3 py-1.5 rounded-full hover:bg-white/10 bg-black/60 backdrop-blur-md border border-white/20 shadow-lg group"
+            className="w-8 h-8 rounded-full bg-black/60 hover:bg-neutral-800 text-white flex items-center justify-center border border-white/15 shadow-md transition-transform hover:scale-105 active:scale-95 group"
             aria-label="Back to Browse"
             title="Back to Browse (Esc)"
           >
-            <ArrowLeft className="w-5 h-5 group-hover:-translate-x-0.5 transition-transform" />
-            <span className="text-xs font-semibold uppercase tracking-wider hidden sm:inline">Back</span>
+            <ArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
           </button>
-          <div>
-            <div className="flex items-center space-x-2">
-              <span className="text-[11px] font-bold text-netflix-red uppercase tracking-wider">
-                {isTv ? 'TV Series' : 'Movie'}
-              </span>
-              <span className="text-xs text-neutral-500">•</span>
-              <span className="text-[11px] text-neutral-400">{activePlayingItem.releaseYear}</span>
-            </div>
-            <h2 className="text-sm sm:text-lg font-bold text-white uppercase tracking-tight line-clamp-1">
+
+          <div className="flex items-baseline space-x-2 max-w-sm sm:max-w-md truncate">
+            <h2 className="text-xs sm:text-sm font-bold text-white uppercase tracking-tight truncate">
               {activePlayingItem.title}
             </h2>
+            <span className="text-[10px] text-neutral-400 shrink-0 font-medium">
+              {isTv ? `S${season} · E${episode}` : `${activePlayingItem.releaseYear}`}
+            </span>
           </div>
         </div>
 
-        {/* Discreet Toolbar: Stream Badge + TV Episode + Server Switcher + Fullscreen */}
-        <div className="flex items-center space-x-2 sm:space-x-3 text-xs">
-          {/* Stream Protection Badge */}
-          <div
-            className="hidden sm:flex items-center space-x-1.5 px-2.5 py-1 rounded bg-netflix-red/10 border border-netflix-red/30 text-white text-[11px] font-semibold tracking-wide backdrop-blur-sm shadow-sm select-none"
-            title="Clean Streaming Active"
-          >
-            <ShieldCheck className="w-3.5 h-3.5 text-netflix-red" />
-            <span>Clean Stream</span>
-          </div>
-          {/* TV Episode Selector */}
+        {/* Right: Ultra-Compact Controls (Season, Episode, Server, Fullscreen) */}
+        <div className="flex items-center space-x-2 text-xs">
+          {/* TV Season & Episode Selectors */}
           {isTv && (
-            <div className="flex items-center space-x-1.5 bg-black/70 border border-white/15 px-2.5 py-1 rounded backdrop-blur-sm">
-              <Tv className="w-3.5 h-3.5 text-netflix-red hidden sm:inline" />
-              <div className="flex items-center space-x-1">
-                <span className="text-neutral-400 font-medium">S:</span>
+            <div className="flex items-center space-x-1 bg-black/60 border border-white/15 px-2 py-1 rounded backdrop-blur-sm">
+              <Tv className="w-3 h-3 text-netflix-red" />
+              <div className="flex items-center space-x-0.5">
+                <span className="text-[10px] text-neutral-400 font-medium">S:</span>
                 <select
                   value={season}
                   onChange={(e) => {
@@ -276,7 +353,7 @@ export default function VideoPlayer() {
                     setEpisode(1);
                     setIsLoading(true);
                   }}
-                  className="bg-transparent text-white font-bold focus:outline-none cursor-pointer"
+                  className="bg-transparent text-white text-xs font-bold focus:outline-none cursor-pointer"
                 >
                   {(activePlayingItem.seasons && activePlayingItem.seasons.length > 0
                     ? activePlayingItem.seasons.map((s) => s.seasonNumber)
@@ -289,18 +366,18 @@ export default function VideoPlayer() {
                 </select>
               </div>
 
-              <div className="flex items-center space-x-1 ml-2">
-                <span className="text-neutral-400 font-medium">E:</span>
+              <div className="flex items-center space-x-0.5 ml-1.5">
+                <span className="text-[10px] text-neutral-400 font-medium">E:</span>
                 <select
                   value={episode}
                   onChange={(e) => {
                     setEpisode(Number(e.target.value));
                     setIsLoading(true);
                   }}
-                  className="bg-transparent text-white font-bold focus:outline-none cursor-pointer"
+                  className="bg-transparent text-white text-xs font-bold focus:outline-none cursor-pointer"
                 >
                   {(
-                    activePlayingItem.seasons?.find((s) => s.seasonNumber === season)?.episodes.map((ep) => ep.episodeNumber) ||
+                    currentSeasonObj?.episodes.map((ep) => ep.episodeNumber) ||
                     Array.from({ length: 24 }, (_, i) => i + 1)
                   ).map((ep) => (
                     <option key={ep} value={ep} className="bg-neutral-900 text-white">
@@ -312,43 +389,56 @@ export default function VideoPlayer() {
             </div>
           )}
 
-          {/* Server Switcher Dropdown */}
+          {/* Minimalist Server Switcher Dropdown */}
           <div className="relative">
             <button
               onClick={() => setShowServerMenu((prev) => !prev)}
-              className="flex items-center space-x-1.5 bg-black/70 hover:bg-neutral-900 text-white font-medium px-2.5 py-1 rounded border border-white/20 shadow-md transition-colors backdrop-blur-sm"
-              title="Change Streaming Server"
+              className="flex items-center space-x-1.5 bg-black/60 hover:bg-neutral-900 text-white font-medium px-2.5 py-1 rounded border border-white/15 shadow-sm transition-colors backdrop-blur-sm text-xs"
+              title="Switch Stream Server"
             >
-              <Server className="w-3.5 h-3.5 text-netflix-red" />
-              <span className="hidden sm:inline">
-                {serverOptions.find((s) => s.id === activeServer)?.label}
+              <Server className="w-3 h-3 text-netflix-red" />
+              <span className="hidden sm:inline text-[11px] font-semibold">
+                {serverOptions.find((s) => s.id === activeServer)?.label.split(':')[1] || 'Server'}
               </span>
-              <span className="sm:hidden">Server</span>
-              <ChevronDown className="w-3 h-3 text-neutral-400 ml-0.5" />
+              <span className="sm:hidden text-[11px]">Server</span>
+              <ChevronDown className="w-2.5 h-2.5 text-neutral-400 ml-0.5" />
             </button>
 
             {showServerMenu && (
-              <div className="absolute right-0 mt-2 w-52 bg-[#0c0c0c] border border-neutral-800 rounded-lg shadow-2xl py-1.5 z-50 text-xs">
-                <div className="px-3 py-1 text-[10px] font-bold text-neutral-500 uppercase tracking-wider border-b border-neutral-800">
-                  Switch Server
+              <div className="absolute right-0 mt-2 w-56 bg-[#0e0e0e] border border-neutral-800 rounded-lg shadow-2xl py-1 z-50 text-xs divide-y divide-neutral-800/60">
+                <div className="px-3 py-1 text-[9px] font-bold text-neutral-500 uppercase tracking-wider flex items-center justify-between">
+                  <span>Stream Servers</span>
+                  <span className="text-[9px] text-emerald-400 font-mono">Auto-Failover Active</span>
                 </div>
-                {serverOptions.map((srv) => (
+                <div className="py-1">
+                  {serverOptions.map((srv) => (
+                    <button
+                      key={srv.id}
+                      onClick={() => {
+                        setActiveServer(srv.id);
+                        setShowServerMenu(false);
+                        setIsLoading(true);
+                      }}
+                      className={`w-full flex items-center justify-between px-3 py-1.5 text-left hover:bg-neutral-900 transition-colors ${
+                        activeServer === srv.id
+                          ? 'text-netflix-red font-bold bg-neutral-900/60'
+                          : 'text-neutral-300'
+                      }`}
+                    >
+                      <span className="text-[11px]">{srv.label}</span>
+                      <span className="text-[9px] text-neutral-500 font-mono">{srv.tag}</span>
+                    </button>
+                  ))}
+                </div>
+                <div className="px-3 py-1.5 bg-black/40">
                   <button
-                    key={srv.id}
-                    onClick={() => {
-                      setActiveServer(srv.id);
-                      setShowServerMenu(false);
-                      setIsLoading(true);
-                    }}
-                    className={`w-full flex items-center justify-between px-3 py-1.5 text-left hover:bg-neutral-900 transition-colors ${
-                      activeServer === srv.id
-                        ? 'text-netflix-red font-bold bg-neutral-900/60'
-                        : 'text-neutral-300'
-                    }`}
+                    onClick={() => handleNextServer()}
+                    className="w-full text-center text-[10px] text-neutral-400 hover:text-white font-medium flex items-center justify-center space-x-1"
                   >
-                    <span>{srv.label}</span>
+                    <RotateCcw className="w-2.5 h-2.5" />
+                    <span>Auto-Switch Server [N]</span>
                   </button>
-                ))}
+                </div>
               </div>
             )}
           </div>
@@ -356,25 +446,43 @@ export default function VideoPlayer() {
           {/* Fullscreen Button */}
           <button
             onClick={toggleFullscreen}
-            className="p-1.5 rounded hover:bg-white/10 text-white transition-colors"
+            className="w-8 h-8 rounded-full bg-black/60 hover:bg-white/10 text-white flex items-center justify-center border border-white/15 transition-colors"
             title="Toggle Fullscreen (f)"
           >
-            {isFullscreen ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}
+            {isFullscreen ? <Minimize className="w-3.5 h-3.5" /> : <Maximize className="w-3.5 h-3.5" />}
           </button>
         </div>
       </div>
 
-      {/* Full-Screen Pure Cinema Video Player (Zero Bottom Clutter) */}
+      {/* Floating Status Toast (Auto-Failover Alert) */}
+      {toastMessage && (
+        <div className="absolute top-16 z-50 px-3.5 py-1.5 rounded-full bg-black/90 border border-white/20 text-white text-xs font-semibold backdrop-blur-md shadow-2xl flex items-center space-x-2 animate-in fade-in slide-in-from-top-2 duration-200">
+          <Sparkles className="w-3.5 h-3.5 text-netflix-red animate-spin" />
+          <span>{toastMessage}</span>
+        </div>
+      )}
+
+      {/* Ephemeral Keyboard Guide (Fades out automatically) */}
+      {showKeyboardGuide && (
+        <div className="absolute bottom-6 z-40 px-3 py-1 rounded-full bg-black/75 border border-white/15 text-neutral-300 text-[10px] backdrop-blur-md shadow-lg flex items-center space-x-2 transition-opacity duration-700 pointer-events-none">
+          <span className="font-mono text-white">[N]</span> Next Server •
+          <span className="font-mono text-white">[F]</span> Fullscreen •
+          <span className="font-mono text-white">[←/→]</span> Prev/Next Ep •
+          <span className="font-mono text-white">[Esc]</span> Exit
+        </div>
+      )}
+
+      {/* Pure Cinema Video Canvas */}
       <div className="relative w-full h-full flex items-center justify-center bg-black">
         {/* Loading Spinner */}
         {isLoading && (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-black z-20 space-y-3">
-            <div className="w-10 h-10 border-3 border-netflix-red border-t-transparent rounded-full animate-spin" />
-            <p className="text-xs text-neutral-500 font-medium">Loading cinema stream...</p>
+            <div className="w-8 h-8 border-2 border-netflix-red border-t-transparent rounded-full animate-spin" />
+            <p className="text-[11px] text-neutral-400 font-medium">Connecting to cinema stream...</p>
           </div>
         )}
 
-        {/* Embedded Streaming Player */}
+        {/* Embedded Streaming Player with Strict Screen-Click Ad Shield */}
         {isEmbedServer ? (
           <iframe
             key={`${activeServer}-${season}-${episode}`}
@@ -384,7 +492,9 @@ export default function VideoPlayer() {
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen"
             allowFullScreen
             referrerPolicy="origin"
+            sandbox={getSandboxPolicy()}
             onLoad={() => setIsLoading(false)}
+            onError={() => handleNextServer('Connection interrupted. Auto-switching stream server...')}
           />
         ) : (
           <video
