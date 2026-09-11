@@ -399,6 +399,90 @@ export const ALL_MEDIA_ITEMS: MediaItem[] = [
     audioChannels: 'Dolby Atmos',
     subtitles: ['English [CC]', 'German', 'Spanish'],
   },
+  {
+    id: 'media-13',
+    title: 'The Alpine Enigma',
+    overview: 'In an isolated research station high in the Swiss Alps, meteorologists uncover an encrypted meteorological beacon transmitting coordinates that predate recorded history.',
+    backdropUrl: 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=1280&q=80',
+    posterUrl: 'https://images.unsplash.com/photo-1486870591958-9b9d0d1dda99?auto=format&fit=crop&w=600&q=80',
+    trailerUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4',
+    videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4',
+    matchScore: 95,
+    maturityRating: 'PG-13',
+    advisoryTags: ['Mystery', 'Suspense', 'High Altitude'],
+    releaseYear: 2025,
+    duration: '2h 08m',
+    quality: '4K Ultra HD',
+    genres: ['Mystery', 'Drama', 'Psychological'],
+    type: 'movie',
+    cast: ['Michael Fassbender', 'Rebecca Ferguson'],
+    director: 'Denis Villeneuve',
+    audioChannels: 'Dolby Atmos',
+    subtitles: ['English [CC]', 'German', 'French'],
+  },
+  {
+    id: 'media-14',
+    title: 'Iron Horizon',
+    overview: 'During an aerial blockade over the Pacific Rim, an ace combat flight squadron tests experimental variable-geometry interceptors against an autonomous drone fleet.',
+    backdropUrl: 'https://images.unsplash.com/photo-1517976487588-66a93557e179?auto=format&fit=crop&w=1280&q=80',
+    posterUrl: 'https://images.unsplash.com/photo-1519074069444-1ba4ea16e6f9?auto=format&fit=crop&w=600&q=80',
+    trailerUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+    videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+    matchScore: 93,
+    maturityRating: '16+',
+    advisoryTags: ['Intense Aerial Combat', 'Military Action'],
+    releaseYear: 2026,
+    duration: '2h 15m',
+    quality: '4K Ultra HD',
+    genres: ['Action', 'Sci-Fi', 'Military Thriller'],
+    type: 'movie',
+    cast: ['Tom Hardy', 'Hiroyuki Sanada', 'Gemma Chan'],
+    director: 'Joseph Kosinski',
+    audioChannels: 'Dolby Atmos 7.1',
+    subtitles: ['English [CC]', 'Japanese'],
+  },
+  {
+    id: 'media-15',
+    title: 'Sub-Zero Protocol',
+    overview: 'A deep-sea arctic drilling station strikes an ancient geothermal pocket, unleashing a subterranean shockwave that isolates the drilling team beneath miles of ice.',
+    backdropUrl: 'https://images.unsplash.com/photo-1483728642387-6c3bdd6c93e5?auto=format&fit=crop&w=1280&q=80',
+    posterUrl: 'https://images.unsplash.com/photo-1509316975850-ff9c5deb0cd9?auto=format&fit=crop&w=600&q=80',
+    trailerUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4',
+    videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4',
+    matchScore: 92,
+    maturityRating: '16+',
+    advisoryTags: ['Claustrophobia', 'Survival Thriller'],
+    releaseYear: 2025,
+    duration: '1h 56m',
+    quality: '4K Ultra HD',
+    genres: ['Sci-Fi', 'Thriller', 'Survival'],
+    type: 'movie',
+    cast: ['Karl Urban', 'Noomi Rapace'],
+    director: 'Fede Álvarez',
+    audioChannels: 'Dolby Atmos',
+    subtitles: ['English [CC]', 'Swedish'],
+  },
+  {
+    id: 'media-16',
+    title: 'Ghost of Kyoto',
+    overview: 'In a feudal fantasy Japan where spirits and shadow warriors walk the night, a disgraced ronin wields a soul-binding katana to protect a celestial shrine maiden.',
+    backdropUrl: 'https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?auto=format&fit=crop&w=1280&q=80',
+    posterUrl: 'https://images.unsplash.com/photo-1578632767115-351597cf2477?auto=format&fit=crop&w=600&q=80',
+    trailerUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4',
+    videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4',
+    matchScore: 97,
+    maturityRating: '16+',
+    advisoryTags: ['Stylized Swordplay', 'Fantasy Violence'],
+    releaseYear: 2026,
+    duration: '2 Seasons',
+    quality: '4K Ultra HD',
+    genres: ['Anime Series', 'Dark Fantasy', 'Action'],
+    type: 'tv',
+    cast: ['Kenjiro Tsuda', 'Saori Hayami'],
+    director: 'Sunghoo Park',
+    audioChannels: 'Dolby 5.1',
+    subtitles: ['English [CC]', 'Japanese'],
+  },
 ];
 
 export const CATEGORY_ROWS: CategoryRow[] = [
@@ -406,55 +490,60 @@ export const CATEGORY_ROWS: CategoryRow[] = [
     id: 'trending-now',
     title: 'Trending Now',
     items: [
-      ALL_MEDIA_ITEMS[0],
-      ALL_MEDIA_ITEMS[1],
-      ALL_MEDIA_ITEMS[2],
-      ALL_MEDIA_ITEMS[3],
-      ALL_MEDIA_ITEMS[4],
-      ALL_MEDIA_ITEMS[5],
+      BILLBOARD_ITEM,
+      ALL_MEDIA_ITEMS[2],  // Neon Runner
+      ALL_MEDIA_ITEMS[3],  // Echoes in the Deep
+      ALL_MEDIA_ITEMS[4],  // Chronicles of Shadow
+      ALL_MEDIA_ITEMS[5],  // Silicon Syndicate
+      ALL_MEDIA_ITEMS[6],  // Solaris Odyssey
     ],
   },
   {
     id: 'top-10-today',
     title: 'Top 10 in Your Country Today',
     isTop10: true,
-    items: ALL_MEDIA_ITEMS.slice(0, 10),
+    items: [
+      TANGERINES_ITEM,
+      BILLBOARD_ITEM,
+      ALL_MEDIA_ITEMS[2],
+      ALL_MEDIA_ITEMS[3],
+      ALL_MEDIA_ITEMS[4],
+      ALL_MEDIA_ITEMS[5],
+      ALL_MEDIA_ITEMS[6],
+      ALL_MEDIA_ITEMS[7],
+      ALL_MEDIA_ITEMS[8],
+      ALL_MEDIA_ITEMS[9],
+    ],
   },
   {
     id: 'action-scifi',
     title: 'Action & Sci-Fi Thrillers',
     items: [
-      ALL_MEDIA_ITEMS[1],
-      ALL_MEDIA_ITEMS[5],
-      ALL_MEDIA_ITEMS[7],
-      ALL_MEDIA_ITEMS[8],
-      ALL_MEDIA_ITEMS[11],
-      ALL_MEDIA_ITEMS[0],
+      ALL_MEDIA_ITEMS[7],   // Midnight Tokyo
+      ALL_MEDIA_ITEMS[8],   // Vortex 9
+      ALL_MEDIA_ITEMS[12],  // Quantum Heist
+      ALL_MEDIA_ITEMS[14],  // Iron Horizon
+      ALL_MEDIA_ITEMS[15],  // Sub-Zero Protocol
     ],
   },
   {
     id: 'critically-acclaimed',
     title: 'Critically Acclaimed Dramas',
     items: [
-      ALL_MEDIA_ITEMS[0],
-      ALL_MEDIA_ITEMS[3],
-      ALL_MEDIA_ITEMS[4],
-      ALL_MEDIA_ITEMS[2],
-      ALL_MEDIA_ITEMS[9],
-      ALL_MEDIA_ITEMS[10],
-      ALL_MEDIA_ITEMS[6],
+      TANGERINES_ITEM,
+      ALL_MEDIA_ITEMS[10],  // The Cartel Codex
+      ALL_MEDIA_ITEMS[11],  // Afterlight: Frostfall
+      ALL_MEDIA_ITEMS[13],  // The Alpine Enigma
     ],
   },
   {
     id: 'anime-animation',
     title: 'Anime & Speculative Fiction',
     items: [
-      ALL_MEDIA_ITEMS[8],
-      ALL_MEDIA_ITEMS[0],
-      ALL_MEDIA_ITEMS[3],
-      ALL_MEDIA_ITEMS[5],
-      ALL_MEDIA_ITEMS[7],
-      ALL_MEDIA_ITEMS[1],
+      ALL_MEDIA_ITEMS[9],   // Synthesis: Zero
+      ALL_MEDIA_ITEMS[16],  // Ghost of Kyoto
+      ALL_MEDIA_ITEMS[4],   // Chronicles of Shadow
     ],
   },
 ];
+

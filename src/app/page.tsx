@@ -8,43 +8,46 @@ import MediaDetailModal from '../components/MediaDetailModal';
 import VideoPlayer from '../components/VideoPlayer';
 import SearchOverlay from '../components/SearchOverlay';
 import Footer from '../components/Footer';
+import ApiSettingsModal from '../components/ApiSettingsModal';
 import { useApp } from '../context/AppContext';
 import { getBillboardMedia, getContentRows } from '../services/mediaService';
 import { BILLBOARD_ITEM, CATEGORY_ROWS } from '../services/mockData';
 import { MediaItem, CategoryRow } from '../types/media';
 
 export default function Home() {
-  const { searchQuery, activeNav, myList } = useApp();
+  const {
+    searchQuery,
+    activeNav,
+    myList,
+    isApiModalOpen,
+    setIsApiModalOpen,
+    apifyDatasetId,
+    setApifyDatasetId,
+  } = useApp();
   const [billboardItem, setBillboardItem] = useState<MediaItem>(BILLBOARD_ITEM);
   const [contentRows, setContentRows] = useState<CategoryRow[]>(CATEGORY_ROWS);
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    let isMounted = true;
-
-    async function loadData() {
-      try {
-        const [billboard, rows] = await Promise.all([
-          getBillboardMedia(),
-          getContentRows(),
-        ]);
-        if (isMounted) {
-          setBillboardItem(billboard);
-          setContentRows(rows);
-          setIsLoading(false);
-        }
-      } catch (err) {
-        console.warn('Failed to load live TMDB rows, using fallback:', err);
-        if (isMounted) setIsLoading(false);
-      }
+  const loadData = async (datasetIdToUse?: string) => {
+    try {
+      setIsLoading(true);
+      const [billboard, rows] = await Promise.all([
+        getBillboardMedia(),
+        getContentRows(datasetIdToUse || apifyDatasetId),
+      ]);
+      setBillboardItem(billboard);
+      setContentRows(rows);
+      setIsLoading(false);
+    } catch (err) {
+      console.warn('Failed to load live TMDB rows, using fallback:', err);
+      setIsLoading(false);
     }
+  };
 
-    loadData();
+  useEffect(() => {
+    loadData(apifyDatasetId);
+  }, [apifyDatasetId]);
 
-    return () => {
-      isMounted = false;
-    };
-  }, []);
 
   // Filter rows based on active nav selection
   const getFilteredRows = () => {
@@ -134,6 +137,15 @@ export default function Home() {
       {/* Global Interactive Overlays */}
       <MediaDetailModal />
       <VideoPlayer />
+      <ApiSettingsModal
+        isOpen={isApiModalOpen}
+        onClose={() => setIsApiModalOpen(false)}
+        currentDatasetId={apifyDatasetId}
+        onApplyDataset={(newId) => {
+          setApifyDatasetId(newId);
+          loadData(newId);
+        }}
+      />
 
       {/* Netflix Authentic Footer */}
       <Footer />

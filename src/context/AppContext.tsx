@@ -28,6 +28,12 @@ interface AppContextType {
 
   isGlobalMuted: boolean;
   toggleGlobalMute: () => void;
+
+  isApiModalOpen: boolean;
+  setIsApiModalOpen: (open: boolean) => void;
+
+  apifyDatasetId: string;
+  setApifyDatasetId: (id: string) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -40,6 +46,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [activeProfile, setActiveProfile] = useState<UserProfile>(USER_PROFILES[0]);
   const [activeNav, setActiveNav] = useState('Home');
   const [isGlobalMuted, setIsGlobalMuted] = useState(true);
+  const [isApiModalOpen, setIsApiModalOpen] = useState(false);
+  const [apifyDatasetId, setApifyDatasetId] = useState('ArI5EJKtMHM9AavEd');
+
 
   // Hydrate My List from localStorage
   useEffect(() => {
@@ -116,6 +125,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setActiveNav,
         isGlobalMuted,
         toggleGlobalMute,
+        isApiModalOpen,
+        setIsApiModalOpen,
+        apifyDatasetId,
+        setApifyDatasetId,
       }}
     >
       {children}
