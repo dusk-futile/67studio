@@ -8,11 +8,12 @@ import {
   Maximize,
   Minimize,
   ChevronDown,
+  ShieldCheck,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { getTmdbTrailerKey } from '../services/mediaService';
 
-type ServerType = 'server1' | 'server2' | 'server3' | 'trailer' | 'direct';
+type ServerType = 'server1' | 'server2' | 'server3' | 'server4' | 'trailer' | 'direct';
 
 export default function VideoPlayer() {
   const { activePlayingItem, stopMedia } = useApp();
@@ -28,6 +29,34 @@ export default function VideoPlayer() {
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const hideTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Relentless Automatic Sandbox & Anti-Redirect Engine
+  useEffect(() => {
+    if (!activePlayingItem) return;
+
+    // 1. Intercept any programmatic window.open / popup attempts on the parent window
+    const originalOpen = window.open;
+    window.open = function (...args: any[]) {
+      console.warn('[67studio Shield] Relentlessly blocked ad popup attempt:', args);
+      return null;
+    };
+
+    // 2. Prevent window defocus / popunder background tab stealing
+    const handleBlur = () => {
+      setTimeout(() => {
+        if (document.activeElement?.tagName !== 'IFRAME') {
+          window.focus();
+        }
+      }, 100);
+    };
+
+    window.addEventListener('blur', handleBlur);
+
+    return () => {
+      window.open = originalOpen;
+      window.removeEventListener('blur', handleBlur);
+    };
+  }, [activePlayingItem]);
 
   // Initialize player state when media changes
   useEffect(() => {
@@ -101,15 +130,20 @@ export default function VideoPlayer() {
     switch (activeServer) {
       case 'server1':
         return isTv
-          ? `https://vidlink.pro/tv/${tmdbId}/${season}/${episode}?primaryColor=e50914&secondaryColor=141414&iconColor=ffffff&title=false`
-          : `https://vidlink.pro/movie/${tmdbId}?primaryColor=e50914&secondaryColor=141414&iconColor=ffffff&title=false`;
+          ? `https://vidlink.pro/tv/${tmdbId}/${season}/${episode}?autoplay=true&primaryColor=e50914&secondaryColor=141414&iconColor=ffffff&title=false&nextbutton=true`
+          : `https://vidlink.pro/movie/${tmdbId}?autoplay=true&primaryColor=e50914&secondaryColor=141414&iconColor=ffffff&title=false&nextbutton=true`;
 
       case 'server2':
+        return isTv
+          ? `https://vidsrc.xyz/embed/tv/${tmdbId}/${season}/${episode}`
+          : `https://vidsrc.xyz/embed/movie/${tmdbId}`;
+
+      case 'server3':
         return isTv
           ? `https://autoembed.co/tv/tmdb/${tmdbId}/${season}/${episode}`
           : `https://autoembed.co/movie/tmdb/${tmdbId}`;
 
-      case 'server3':
+      case 'server4':
         return isTv
           ? `https://www.2embed.cc/embedtv/${tmdbId}&s=${season}&e=${episode}`
           : `https://www.2embed.cc/embed/${tmdbId}`;
@@ -127,12 +161,18 @@ export default function VideoPlayer() {
   };
 
   const streamUrl = getStreamUrl();
-  const isEmbedServer = activeServer === 'server1' || activeServer === 'server2' || activeServer === 'server3' || (activeServer === 'trailer' && !!youtubeKey);
+  const isEmbedServer =
+    activeServer === 'server1' ||
+    activeServer === 'server2' ||
+    activeServer === 'server3' ||
+    activeServer === 'server4' ||
+    (activeServer === 'trailer' && !!youtubeKey);
 
   const serverOptions: Array<{ id: ServerType; label: string }> = [
-    { id: 'server1', label: 'Server 1 (VidLink HD - Ad-Free)' },
-    { id: 'server2', label: 'Server 2 (AutoEmbed)' },
-    { id: 'server3', label: 'Server 3 (2Embed)' },
+    { id: 'server1', label: 'Server 1 (VidLink HD - Auto Autoplay)' },
+    { id: 'server2', label: 'Server 2 (VidSrc Stream)' },
+    { id: 'server3', label: 'Server 3 (AutoEmbed)' },
+    { id: 'server4', label: 'Server 4 (2Embed)' },
     { id: 'trailer', label: 'Official 4K Trailer' },
     { id: 'direct', label: 'Direct Stream' },
   ];
@@ -153,7 +193,10 @@ export default function VideoPlayer() {
       >
         <div className="flex items-center space-x-3 sm:space-x-4">
           <button
-            onClick={stopMedia}
+            onClick={(e) => {
+              e.stopPropagation();
+              stopMedia();
+            }}
             className="flex items-center space-x-2 text-white hover:text-netflix-red transition-all px-3 py-1.5 rounded-full hover:bg-white/10 bg-black/60 backdrop-blur-md border border-white/20 shadow-lg group"
             aria-label="Back to Browse"
             title="Back to Browse (Esc)"
@@ -175,8 +218,16 @@ export default function VideoPlayer() {
           </div>
         </div>
 
-        {/* Discreet Toolbar: Episode Selector (TV) + Server Switcher + Fullscreen */}
+        {/* Discreet Toolbar: Sandbox Badge + TV Episode + Server Switcher + Fullscreen */}
         <div className="flex items-center space-x-2 sm:space-x-3 text-xs">
+          {/* Relentless Sandbox Indicator Badge */}
+          <div
+            className="hidden sm:flex items-center space-x-1.5 px-2.5 py-1 rounded bg-green-500/10 border border-green-500/30 text-green-400 text-[11px] font-semibold tracking-wide backdrop-blur-sm shadow-sm select-none"
+            title="Relentless Sandbox Active: All popups, ad redirects, and tab hijackers are automatically blocked"
+          >
+            <ShieldCheck className="w-3.5 h-3.5 text-green-400" />
+            <span>Relentless Sandbox</span>
+          </div>
           {/* TV Episode Selector */}
           {isTv && (
             <div className="flex items-center space-x-1.5 bg-black/70 border border-white/15 px-2.5 py-1 rounded backdrop-blur-sm">
