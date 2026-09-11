@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, Bell, ChevronDown, X, Check, Film, Tv, Sparkles, Lock } from 'lucide-react';
+import { Search, Bell, ChevronDown, X, Check, Film, Tv, Sparkles, Lock, RotateCcw } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { USER_PROFILES } from '../services/mockData';
 
@@ -14,6 +14,7 @@ export default function Navbar() {
     activeNav,
     setActiveNav,
     lockStudio,
+    clearWatchHistory,
   } = useApp();
 
   const [isScrolled, setIsScrolled] = useState(false);
@@ -257,6 +258,16 @@ export default function Navbar() {
                   Help Center
                 </button>
                 <div className="border-t border-neutral-800 my-1"></div>
+                <button
+                  onClick={() => {
+                    clearWatchHistory();
+                    setIsProfileOpen(false);
+                  }}
+                  className="w-full text-left px-4 py-1.5 hover:bg-neutral-900 text-neutral-300 hover:text-white transition-colors flex items-center space-x-2 text-[11px]"
+                >
+                  <RotateCcw className="w-3.5 h-3.5 text-neutral-400" />
+                  <span>Reset Watch Progress</span>
+                </button>
                 <button
                   onClick={() => {
                     setIsProfileOpen(false);

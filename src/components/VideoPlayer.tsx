@@ -29,7 +29,7 @@ const FALLBACK_CHAIN: ServerType[] = [
 ];
 
 export default function VideoPlayer() {
-  const { activePlayingItem, stopMedia } = useApp();
+  const { activePlayingItem, stopMedia, updateWatchProgress } = useApp();
   const [activeServer, setActiveServer] = useState<ServerType>('vidlove');
   const [season, setSeason] = useState(1);
   const [episode, setEpisode] = useState(1);
@@ -145,6 +145,36 @@ export default function VideoPlayer() {
 
     return () => clearTimeout(guideTimer);
   }, [activePlayingItem]);
+
+  // Track real viewing progress only when user actually watches
+  useEffect(() => {
+    if (!activePlayingItem) return;
+
+    const itemKey = activePlayingItem.type === 'tv'
+      ? `ep-${activePlayingItem.tmdbId || activePlayingItem.id}-${season}-${episode}`
+      : activePlayingItem.id;
+
+    // Record initial 15% after 5 seconds of watching
+    const timer1 = setTimeout(() => {
+      updateWatchProgress(itemKey, 15);
+    }, 5000);
+
+    // Record 50% after 30 seconds
+    const timer2 = setTimeout(() => {
+      updateWatchProgress(itemKey, 50);
+    }, 30000);
+
+    // Record 85% after 60 seconds
+    const timer3 = setTimeout(() => {
+      updateWatchProgress(itemKey, 85);
+    }, 60000);
+
+    return () => {
+      clearTimeout(timer1);
+      clearTimeout(timer2);
+      clearTimeout(timer3);
+    };
+  }, [activePlayingItem, season, episode, updateWatchProgress]);
 
   // Automatic Timeout Failover: If server is stuck loading for > 8s, auto-failover to next server
   useEffect(() => {
@@ -511,6 +541,15 @@ export default function VideoPlayer() {
                   if (videoRef.current) videoRef.current.muted = true;
                   videoRef.current?.play().catch(() => {});
                 });
+              }
+            }}
+            onTimeUpdate={() => {
+              if (videoRef.current && videoRef.current.duration > 0) {
+                const pct = (videoRef.current.currentTime / videoRef.current.duration) * 100;
+                const itemKey = activePlayingItem.type === 'tv'
+                  ? `ep-${activePlayingItem.tmdbId || activePlayingItem.id}-${season}-${episode}`
+                  : activePlayingItem.id;
+                updateWatchProgress(itemKey, pct);
               }
             }}
             className="w-full h-full object-contain"

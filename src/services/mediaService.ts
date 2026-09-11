@@ -178,7 +178,6 @@ export function transformTmdbItem(item: any, index: number = 0, isTv: boolean = 
                 duration: '54m',
                 thumbnailUrl: backdrop,
                 videoUrl: trailer,
-                progressPercent: 40,
               },
               {
                 id: `ep-${item.id}-2`,
@@ -241,7 +240,6 @@ export async function getTvSeasons(tmdbId: number): Promise<Season[]> {
           ? `${IMAGE_BASE_W780}${ep.still_path}`
           : (show.backdrop_path ? `${IMAGE_BASE_ORIGINAL}${show.backdrop_path}` : 'https://images.unsplash.com/photo-1509198397868-475647b2a1e5?auto=format&fit=crop&w=1920&q=85'),
         videoUrl: `https://player.vidlove.cc/embed/tv/${tmdbId}/${s.season_number}/${ep.episode_number}?autoplay=true&primarycolor=e50914&server=Dark`,
-        progressPercent: Math.floor(Math.random() * 50) + 20,
       }));
 
       return {

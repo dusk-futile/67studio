@@ -22,6 +22,7 @@ export default function MediaDetailModal() {
     playMedia,
     toggleMyList,
     isInMyList,
+    getWatchProgress,
   } = useApp();
 
   const [similarItems, setSimilarItems] = useState<MediaItem[]>([]);
@@ -303,14 +304,21 @@ export default function MediaDetailModal() {
                       <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                         <Play className="w-8 h-8 text-white fill-current" />
                       </div>
-                      {episode.progressPercent && (
-                        <div className="absolute bottom-0 inset-x-0 h-1 bg-neutral-800">
-                          <div
-                            className="h-full bg-netflix-red"
-                            style={{ width: `${episode.progressPercent}%` }}
-                          />
-                        </div>
-                      )}
+                      {(() => {
+                        const epKey = `ep-${activeModalItem.tmdbId || activeModalItem.id}-${currentSeason.seasonNumber}-${episode.episodeNumber}`;
+                        const progress = getWatchProgress(epKey) || (episode.progressPercent && episode.progressPercent > 0 ? episode.progressPercent : 0);
+                        if (progress > 0) {
+                          return (
+                            <div className="absolute bottom-0 inset-x-0 h-1 bg-neutral-800">
+                              <div
+                                className="h-full bg-netflix-red"
+                                style={{ width: `${progress}%` }}
+                              />
+                            </div>
+                          );
+                        }
+                        return null;
+                      })()}
                     </div>
 
                     {/* Episode details */}

@@ -39,6 +39,11 @@ interface AppContextType {
   isAuthChecking: boolean;
   verifyPassword: (password: string) => boolean;
   lockStudio: () => void;
+
+  watchProgress: Record<string, number>;
+  updateWatchProgress: (key: string, percent: number) => void;
+  getWatchProgress: (key: string) => number;
+  clearWatchHistory: () => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -98,6 +103,46 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       }
     } catch (e) {
       console.warn('Failed to clear whitelist key:', e);
+    }
+  };
+
+  const [watchProgress, setWatchProgress] = useState<Record<string, number>>({});
+
+  // Hydrate real watch progress from localStorage
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('67studio_watch_progress');
+      if (saved) {
+        setWatchProgress(JSON.parse(saved));
+      }
+    } catch (e) {
+      console.warn('Failed to load watch progress:', e);
+    }
+  }, []);
+
+  const updateWatchProgress = (key: string, percent: number) => {
+    setWatchProgress((prev) => {
+      const clamped = Math.min(100, Math.max(0, Math.round(percent)));
+      const next = { ...prev, [key]: clamped };
+      try {
+        localStorage.setItem('67studio_watch_progress', JSON.stringify(next));
+      } catch (e) {
+        console.warn('Failed to save watch progress:', e);
+      }
+      return next;
+    });
+  };
+
+  const getWatchProgress = (key: string): number => {
+    return watchProgress[key] || 0;
+  };
+
+  const clearWatchHistory = () => {
+    setWatchProgress({});
+    try {
+      localStorage.removeItem('67studio_watch_progress');
+    } catch (e) {
+      console.warn('Failed to clear watch progress:', e);
     }
   };
 
@@ -184,6 +229,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         isAuthChecking,
         verifyPassword,
         lockStudio,
+        watchProgress,
+        updateWatchProgress,
+        getWatchProgress,
+        clearWatchHistory,
       }}
     >
       {children}
