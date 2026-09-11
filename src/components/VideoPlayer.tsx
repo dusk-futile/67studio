@@ -13,11 +13,11 @@ import {
 import { useApp } from '../context/AppContext';
 import { getTmdbTrailerKey } from '../services/mediaService';
 
-type ServerType = 'server1' | 'server2' | 'server3' | 'server4' | 'trailer' | 'direct';
+type ServerType = 'vidlove' | 'vidzen' | 'server1' | 'server2' | 'server3' | 'server4' | 'trailer' | 'direct';
 
 export default function VideoPlayer() {
   const { activePlayingItem, stopMedia } = useApp();
-  const [activeServer, setActiveServer] = useState<ServerType>('server1');
+  const [activeServer, setActiveServer] = useState<ServerType>('vidlove');
   const [season, setSeason] = useState(1);
   const [episode, setEpisode] = useState(1);
   const [youtubeKey, setYoutubeKey] = useState<string | undefined>(undefined);
@@ -77,7 +77,7 @@ export default function VideoPlayer() {
     if (!activePlayingItem) return;
 
     setIsLoading(true);
-    setActiveServer('server1');
+    setActiveServer('vidlove');
     setSeason(1);
     setEpisode(1);
     setAreControlsVisible(true);
@@ -152,6 +152,16 @@ export default function VideoPlayer() {
     }
 
     switch (activeServer) {
+      case 'vidlove':
+        return isTv
+          ? `https://player.vidlove.cc/embed/tv/${tmdbId}/${season}/${episode}?autoplay=true&primarycolor=e50914&server=Dark`
+          : `https://player.vidlove.cc/embed/movie/${tmdbId}?autoplay=true&primarycolor=e50914&server=Dark`;
+
+      case 'vidzen':
+        return isTv
+          ? `https://vidzen.fun/tv/${tmdbId}/${season}/${episode}?autoplay=true&primarycolor=e50914`
+          : `https://vidzen.fun/movie/${tmdbId}?autoplay=true&primarycolor=e50914`;
+
       case 'server1':
         return isTv
           ? `https://autoembed.co/tv/tmdb/${tmdbId}/${season}/${episode}`
@@ -186,6 +196,8 @@ export default function VideoPlayer() {
 
   const streamUrl = getStreamUrl();
   const isEmbedServer =
+    activeServer === 'vidlove' ||
+    activeServer === 'vidzen' ||
     activeServer === 'server1' ||
     activeServer === 'server2' ||
     activeServer === 'server3' ||
@@ -193,10 +205,12 @@ export default function VideoPlayer() {
     (activeServer === 'trailer' && !!youtubeKey);
 
   const serverOptions: Array<{ id: ServerType; label: string }> = [
-    { id: 'server1', label: 'Server 1: AutoEmbed (Clean Stream)' },
-    { id: 'server2', label: 'Server 2: VidLink HD' },
-    { id: 'server3', label: 'Server 3: MultiEmbed' },
-    { id: 'server4', label: 'Server 4: 2Embed' },
+    { id: 'vidlove', label: 'Server 1: VidLove HD (MovieDB)' },
+    { id: 'vidzen', label: 'Server 2: VidZen Ultra (MovieDB)' },
+    { id: 'server1', label: 'Server 3: AutoEmbed (Clean Stream)' },
+    { id: 'server2', label: 'Server 4: VidLink HD' },
+    { id: 'server3', label: 'Server 5: MultiEmbed' },
+    { id: 'server4', label: 'Server 6: 2Embed' },
     { id: 'trailer', label: 'Pure Cinema 4K (100% Ad-Free)' },
     { id: 'direct', label: 'Direct Native Stream (Zero Ads)' },
   ];
