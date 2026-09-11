@@ -27,7 +27,7 @@ export function transformApifyItem(item: any, index: number = 0): MediaItem {
       .replace(/Read Critics Reviews\s*$/i, '')
       .trim();
   }
-  if (!overview) overview = 'Acclaimed feature film available in Ultra HD on 67studio.';
+  if (!overview) overview = 'Acclaimed feature film available in Ultra HD on lana67.';
   overview = decodeHtml(overview);
 
   const image = item.image || item.img || item.poster || 'https://images.unsplash.com/photo-1578632767115-351597cf2477?auto=format&fit=crop&w=600&q=80';

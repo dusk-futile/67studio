@@ -22,7 +22,7 @@ export default function Footer() {
   return (
     <footer className="w-full max-w-6xl mx-auto px-4 md:px-12 py-12 md:py-16 text-neutral-500 text-xs space-y-6">
       <div className="flex items-center space-x-2 text-neutral-400">
-        <span className="font-bold text-sm text-netflix-red">67studio</span>
+        <span className="font-bold text-sm text-netflix-red">lana67</span>
         <span>— The Premier Cinematic Streaming Experience</span>
       </div>
 
@@ -51,7 +51,7 @@ export default function Footer() {
       </div>
 
       <p className="text-[11px] text-neutral-600">
-        © 2026 67studio Entertainment, Inc. Netflix design language recreation. Pluggable API Architecture.
+        © 2026 lana67 Entertainment, Inc. Netflix design language recreation. Pluggable API Architecture.
       </p>
     </footer>
   );

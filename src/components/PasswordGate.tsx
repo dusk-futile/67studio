@@ -65,13 +65,13 @@ export default function PasswordGate() {
         <div className="absolute top-0 left-10 right-10 h-[2px] bg-gradient-to-r from-transparent via-netflix-red to-transparent opacity-80" />
 
         <div className="flex flex-col items-center text-center">
-          {/* 67studio Iconic Logo */}
+          {/* lana67 Iconic Logo */}
           <div className="flex items-center space-x-2 mb-3">
             <span className="font-black text-4xl sm:text-5xl tracking-tighter text-netflix-red drop-shadow-[0_2px_18px_rgba(229,9,20,0.95)] font-sans">
-              67
+              LANA
             </span>
             <span className="text-xl sm:text-2xl font-black tracking-[0.25em] text-white uppercase border-b-2 border-netflix-red pb-1">
-              STUDIO
+              67
             </span>
           </div>
 
@@ -148,7 +148,7 @@ export default function PasswordGate() {
               ) : (
                 <>
                   <KeyRound className="w-4 h-4" />
-                  <span>Unlock 67studio</span>
+                  <span>Unlock lana67</span>
                 </>
               )}
             </button>
@@ -156,7 +156,7 @@ export default function PasswordGate() {
 
           {/* Footer Security Note */}
           <div className="mt-6 pt-5 border-t border-neutral-800/80 w-full flex items-center justify-between text-[10px] text-neutral-500">
-            <span>67studio Guard System</span>
+            <span>lana67 Guard System</span>
             <span className="font-mono text-neutral-400">Encrypted Whitelist</span>
           </div>
         </div>

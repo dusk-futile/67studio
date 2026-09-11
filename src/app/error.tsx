@@ -11,7 +11,7 @@ export default function ErrorBoundary({
   reset: () => void;
 }) {
   useEffect(() => {
-    console.error('[67studio Runtime Error]:', error);
+    console.error('[lana67 Runtime Error]:', error);
   }, [error]);
 
   return (
@@ -24,7 +24,7 @@ export default function ErrorBoundary({
         <div className="space-y-2">
           <h2 className="text-2xl font-bold text-white tracking-tight">Something Went Wrong</h2>
           <p className="text-xs text-neutral-400 leading-relaxed">
-            67studio encountered an unexpected playback or runtime interruption. Your watchlist and preferences remain safe.
+            lana67 encountered an unexpected playback or runtime interruption. Your watchlist and preferences remain safe.
           </p>
         </div>
 
@@ -43,7 +43,7 @@ export default function ErrorBoundary({
             className="flex-1 py-2.5 px-4 bg-neutral-800 hover:bg-neutral-700 text-neutral-200 font-semibold text-xs rounded-lg transition-colors flex items-center justify-center space-x-2 active:scale-95"
           >
             <Home className="w-3.5 h-3.5" />
-            <span>Reload 67studio</span>
+            <span>Reload lana67</span>
           </button>
         </div>
       </div>

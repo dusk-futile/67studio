@@ -146,7 +146,7 @@ export function transformTmdbItem(item: any, index: number = 0, isTv: boolean = 
     id: `tmdb-${item.id}`,
     tmdbId: item.id,
     title,
-    overview: item.overview || 'Stream this acclaimed title in high-definition 4K HDR on 67studio.',
+    overview: item.overview || 'Stream this acclaimed title in high-definition 4K HDR on lana67.',
     backdropUrl: backdrop,
     posterUrl: poster,
     trailerUrl: trailer,
@@ -234,7 +234,7 @@ export async function getTvSeasons(tmdbId: number): Promise<Season[]> {
         id: `ep-${tmdbId}-${s.season_number}-${ep.episode_number}`,
         episodeNumber: ep.episode_number,
         title: ep.name || `Episode ${ep.episode_number}`,
-        overview: ep.overview || 'Stream this acclaimed episode in Ultra HD on 67studio.',
+        overview: ep.overview || 'Stream this acclaimed episode in Ultra HD on lana67.',
         duration: ep.runtime ? `${ep.runtime}m` : '52m',
         thumbnailUrl: ep.still_path
           ? `${IMAGE_BASE_W780}${ep.still_path}`

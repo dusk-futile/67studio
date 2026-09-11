@@ -76,10 +76,10 @@ export default function Home() {
       <div className="min-h-screen bg-black flex flex-col items-center justify-center space-y-4">
         <div className="flex items-center space-x-2">
           <span className="font-black text-3xl tracking-tighter text-netflix-red drop-shadow-[0_2px_12px_rgba(229,9,20,0.8)] font-sans">
-            67
+            LANA
           </span>
           <span className="text-sm font-black tracking-[0.22em] text-white uppercase border-b-2 border-netflix-red pb-0.5">
-            STUDIO
+            67
           </span>
         </div>
         <div className="w-8 h-8 border-2 border-netflix-red border-t-transparent rounded-full animate-spin" />

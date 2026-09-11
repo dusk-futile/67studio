@@ -66,12 +66,12 @@ export default function BillboardHero({ media }: BillboardHeroProps) {
 
       {/* Foreground Billboard Content */}
       <div className="relative z-20 h-full flex flex-col justify-end pb-16 md:pb-24 px-4 md:px-12 max-w-2xl lg:max-w-3xl">
-        {/* 67studio Original Series Badge */}
+        {/* lana67 Original Series Badge */}
         {media.isOriginal && (
           <div className="flex items-center space-x-2 mb-3">
-            <span className="font-black text-xs text-netflix-red tracking-wider">67</span>
+            <span className="font-black text-xs text-netflix-red tracking-wider">LANA</span>
             <span className="text-[11px] font-bold text-white/95 tracking-[0.25em] uppercase">
-              STUDIO ORIGINAL
+              67 ORIGINAL
             </span>
           </div>
         )}

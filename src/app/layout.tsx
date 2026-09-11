@@ -3,8 +3,8 @@ import './globals.css';
 import { AppProvider } from '../context/AppContext';
 
 export const metadata: Metadata = {
-  title: '67studio - Watch TV Shows Online, Watch Movies Online',
-  description: 'Stream high-definition movies, original series, and documentaries on 67studio.',
+  title: 'lana67 - Watch TV Shows Online, Watch Movies Online',
+  description: 'Stream high-definition movies, original series, and documentaries on lana67.',
 };
 
 export default function RootLayout({

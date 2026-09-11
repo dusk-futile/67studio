@@ -66,7 +66,7 @@ export default function Navbar() {
     >
       {/* Left section: Logo & Nav Links */}
       <div className="flex items-center space-x-6 md:space-x-10">
-        {/* 67studio Iconic Curved Logo */}
+        {/* lana67 Iconic Curved Logo */}
         <button
           onClick={() => {
             setActiveNav('Home');
@@ -76,10 +76,10 @@ export default function Navbar() {
         >
           <div className="relative flex items-center">
             <span className="font-black text-2xl md:text-3xl tracking-tighter text-netflix-red drop-shadow-[0_2px_12px_rgba(229,9,20,0.8)] font-sans group-hover:scale-105 transition-transform duration-200">
-              67
+              LANA
             </span>
             <span className="ml-1 text-sm md:text-base font-black tracking-[0.22em] text-white uppercase border-b-2 border-netflix-red pb-0.5">
-              STUDIO
+              67
             </span>
           </div>
         </button>
@@ -174,7 +174,7 @@ export default function Navbar() {
                     <Film className="w-5 h-5 text-netflix-red" />
                   </div>
                   <div className="text-xs">
-                    <p className="font-bold text-white">Trending on 67studio</p>
+                    <p className="font-bold text-white">Trending on lana67</p>
                     <p className="text-neutral-400 line-clamp-1">New 4K blockbuster movies added to your library.</p>
                     <span className="text-[10px] text-neutral-500">Just now</span>
                   </div>

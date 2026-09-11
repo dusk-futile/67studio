@@ -408,13 +408,13 @@ export default function MediaDetailModal() {
 
           {/* About Section Footer */}
           <div className="pt-6 border-t border-neutral-800 text-xs text-neutral-400 space-y-1">
-            <h4 className="text-sm font-bold text-white">About 67studio</h4>
+            <h4 className="text-sm font-bold text-white">About lana67</h4>
             <p>
               Audio: {activeModalItem.audioChannels || 'Dolby Atmos, 5.1 Surround, Stereo'}.
               Subtitles available in English, Spanish, French, Japanese, German, and Arabic.
             </p>
             <p className="text-neutral-500">
-              © 2026 67studio Entertainment, Inc. Netflix design language recreation. Powered by TMDB API.
+              © 2026 lana67 Entertainment, Inc. Netflix design language recreation. Powered by TMDB API.
             </p>
           </div>
         </div>

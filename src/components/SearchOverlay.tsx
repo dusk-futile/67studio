@@ -76,7 +76,7 @@ export default function SearchOverlay() {
       {isLoading ? (
         <div className="flex items-center justify-center py-28 text-neutral-500 text-sm">
           <div className="w-6 h-6 border-2 border-netflix-red border-t-transparent rounded-full animate-spin mr-3" />
-          Searching TMDB & 67studio catalog...
+          Searching TMDB & lana67 catalog...
         </div>
       ) : filteredResults.length > 0 ? (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 sm:gap-6">

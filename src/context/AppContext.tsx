@@ -66,8 +66,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   // Hydrate Whitelist Auth status from localStorage / cookie
   useEffect(() => {
     try {
-      const storedKey = localStorage.getItem('67studio_whitelist_key');
-      const hasCookie = typeof document !== 'undefined' && document.cookie.includes('67studio_auth=sus6767');
+      const storedKey = localStorage.getItem('lana67_whitelist_key') || localStorage.getItem('67studio_whitelist_key');
+      const hasCookie = typeof document !== 'undefined' && (
+        document.cookie.includes('lana67_auth=sus6767') || document.cookie.includes('67studio_auth=sus6767')
+      );
       if (storedKey === WHITELIST_PASSWORD || hasCookie) {
         setIsWhitelisted(true);
       }
@@ -82,8 +84,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (password.trim() === WHITELIST_PASSWORD) {
       setIsWhitelisted(true);
       try {
+        localStorage.setItem('lana67_whitelist_key', WHITELIST_PASSWORD);
         localStorage.setItem('67studio_whitelist_key', WHITELIST_PASSWORD);
         if (typeof document !== 'undefined') {
+          document.cookie = `lana67_auth=${WHITELIST_PASSWORD}; path=/; max-age=31536000; SameSite=Lax`;
           document.cookie = `67studio_auth=${WHITELIST_PASSWORD}; path=/; max-age=31536000; SameSite=Lax`;
         }
       } catch (e) {
@@ -97,8 +101,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const lockStudio = () => {
     setIsWhitelisted(false);
     try {
+      localStorage.removeItem('lana67_whitelist_key');
       localStorage.removeItem('67studio_whitelist_key');
       if (typeof document !== 'undefined') {
+        document.cookie = 'lana67_auth=; path=/; max-age=0; SameSite=Lax';
         document.cookie = '67studio_auth=; path=/; max-age=0; SameSite=Lax';
       }
     } catch (e) {
@@ -111,7 +117,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   // Hydrate real watch progress from localStorage
   useEffect(() => {
     try {
-      const saved = localStorage.getItem('67studio_watch_progress');
+      const saved = localStorage.getItem('lana67_watch_progress') || localStorage.getItem('67studio_watch_progress');
       if (saved) {
         setWatchProgress(JSON.parse(saved));
       }
@@ -125,7 +131,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const clamped = Math.min(100, Math.max(0, Math.round(percent)));
       const next = { ...prev, [key]: clamped };
       try {
-        localStorage.setItem('67studio_watch_progress', JSON.stringify(next));
+        localStorage.setItem('lana67_watch_progress', JSON.stringify(next));
       } catch (e) {
         console.warn('Failed to save watch progress:', e);
       }
@@ -140,6 +146,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const clearWatchHistory = () => {
     setWatchProgress({});
     try {
+      localStorage.removeItem('lana67_watch_progress');
       localStorage.removeItem('67studio_watch_progress');
     } catch (e) {
       console.warn('Failed to clear watch progress:', e);
@@ -149,7 +156,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   // Hydrate My List from localStorage
   useEffect(() => {
     try {
-      const saved = localStorage.getItem('67studio_my_list');
+      const saved = localStorage.getItem('lana67_my_list') || localStorage.getItem('67studio_my_list');
       if (saved) {
         setMyList(JSON.parse(saved));
       }
@@ -162,7 +169,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const saveMyList = (items: MediaItem[]) => {
     setMyList(items);
     try {
-      localStorage.setItem('67studio_my_list', JSON.stringify(items));
+      localStorage.setItem('lana67_my_list', JSON.stringify(items));
     } catch (e) {
       console.error('Failed to save My List to localStorage:', e);
     }
