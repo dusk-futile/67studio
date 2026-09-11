@@ -15,17 +15,17 @@ import {
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { getTmdbTrailerKey } from '../services/mediaService';
+import Hls from 'hls.js';
 
-type ServerType = 'vidlove' | 'vidzen' | 'server1' | 'server2' | 'server3' | 'server4' | 'trailer' | 'direct';
+type ServerType = 'vidlove' | 'vidzen' | 'server1' | 'server3' | 'server4' | 'direct' | 'trailer';
 
 const FALLBACK_CHAIN: ServerType[] = [
   'vidlove',  // 1: VidLove HD (MovieDB primary)
   'vidzen',   // 2: VidZen Ultra (MovieDB secondary)
   'server1',  // 3: AutoEmbed Clean
-  'server2',  // 4: VidLink HD
-  'server3',  // 5: MultiEmbed
-  'server4',  // 6: 2Embed
-  'trailer',  // 7: Pure Cinema 4K
+  'server3',  // 4: MultiEmbed
+  'server4',  // 5: 2Embed
+  'trailer',  // 6: Pure Cinema 4K
 ];
 
 export default function VideoPlayer() {
@@ -49,14 +49,13 @@ export default function VideoPlayer() {
   const isCleanExitRef = useRef(false);
 
   const serverOptions: Array<{ id: ServerType; label: string; tag: string }> = [
-    { id: 'vidlove', label: 'Server 1: VidLove HD', tag: 'MovieDB Primary' },
-    { id: 'vidzen', label: 'Server 2: VidZen Ultra', tag: 'MovieDB Fast' },
-    { id: 'server1', label: 'Server 3: AutoEmbed', tag: 'Ad-Block Strict' },
-    { id: 'server2', label: 'Server 4: VidLink HD', tag: 'High Bitrate' },
-    { id: 'server3', label: 'Server 5: MultiEmbed', tag: 'Multi-Source' },
-    { id: 'server4', label: 'Server 6: 2Embed', tag: 'Fallback' },
-    { id: 'trailer', label: 'Pure Cinema 4K', tag: '100% Zero Ads' },
-    { id: 'direct', label: 'Direct Native Stream', tag: 'HTML5 Video' },
+    { id: 'vidlove', label: 'Server 1: VidLove HD', tag: 'Ad-Shielded' },
+    { id: 'vidzen', label: 'Server 2: VidZen Ultra', tag: 'Fast HLS' },
+    { id: 'server1', label: 'Server 3: AutoEmbed', tag: 'Strict Sandbox' },
+    { id: 'server3', label: 'Server 4: MultiEmbed', tag: 'Multi-Source' },
+    { id: 'server4', label: 'Server 5: 2Embed', tag: 'Backup' },
+    { id: 'direct', label: 'Direct HLS / MP4 Stream', tag: '100% Zero Ads Native' },
+    { id: 'trailer', label: 'Official 4K Cinema Trailer', tag: 'Ad-Free 4K' },
   ];
 
   const showToast = useCallback((msg: string) => {
@@ -280,11 +279,6 @@ export default function VideoPlayer() {
           ? `https://autoembed.co/tv/tmdb/${tmdbId}/${season}/${episode}`
           : `https://autoembed.co/movie/tmdb/${tmdbId}`;
 
-      case 'server2':
-        return isTv
-          ? `https://vidlink.pro/tv/${tmdbId}/${season}/${episode}?autoplay=true&primaryColor=e50914&secondaryColor=141414&iconColor=ffffff&title=false&nextbutton=true`
-          : `https://vidlink.pro/movie/${tmdbId}?autoplay=true&primaryColor=e50914&secondaryColor=141414&iconColor=ffffff&title=false&nextbutton=true`;
-
       case 'server3':
         return isTv
           ? `https://multiembed.mov/?video_id=${tmdbId}&tmdb=1&s=${season}&e=${episode}`
@@ -312,24 +306,46 @@ export default function VideoPlayer() {
     activeServer === 'vidlove' ||
     activeServer === 'vidzen' ||
     activeServer === 'server1' ||
-    activeServer === 'server2' ||
     activeServer === 'server3' ||
     activeServer === 'server4' ||
     (activeServer === 'trailer' && !!youtubeKey);
 
   /**
    * Strict Sandbox Policy to kill screen-click ad popups and prevent redirects:
-   * By omitting 'allow-top-navigation', the iframe can NEVER redirect the user's tab.
-   * By omitting 'allow-popups', any background ad popup attempt on click is killed by the browser.
+   * By omitting 'allow-top-navigation' and 'allow-top-navigation-by-user-activation', the iframe can NEVER redirect the user's tab.
+   * By omitting 'allow-popups' and 'allow-popups-to-escape-sandbox', any background ad popup attempt on click is discarded by the browser.
    */
-  const getSandboxPolicy = (): string | undefined => {
-    if (activeServer === 'server2') {
-      // VidLink checks for sandbox; omit to prevent anti-sandbox screen
-      return undefined;
-    }
-    // Strict ad-block sandbox for VidLove, VidZen, AutoEmbed, MultiEmbed
+  const getSandboxPolicy = (): string => {
     return 'allow-scripts allow-same-origin allow-forms allow-presentation';
   };
+
+  // Direct Native HLS (.m3u8) / MP4 Streaming Engine with Hls.js
+  useEffect(() => {
+    if (!activePlayingItem || isEmbedServer || !videoRef.current || !streamUrl) return;
+
+    if (streamUrl.includes('.m3u8') && Hls.isSupported()) {
+      const hls = new Hls({
+        enableWorker: true,
+        lowLatencyMode: true,
+      });
+      hls.loadSource(streamUrl);
+      hls.attachMedia(videoRef.current);
+      hls.on(Hls.Events.MANIFEST_PARSED, () => {
+        setIsLoading(false);
+        videoRef.current?.play().catch(() => {});
+      });
+      hls.on(Hls.Events.ERROR, (_event, data) => {
+        if (data.fatal) {
+          handleNextServer('Direct stream error. Switching to backup server...');
+        }
+      });
+      return () => {
+        hls.destroy();
+      };
+    } else if (videoRef.current.canPlayType('application/vnd.apple.mpegurl') && streamUrl.includes('.m3u8')) {
+      videoRef.current.src = streamUrl;
+    }
+  }, [activePlayingItem, isEmbedServer, streamUrl, handleNextServer]);
 
   const currentSeasonObj = activePlayingItem.seasons?.find((s) => s.seasonNumber === season);
 
@@ -519,9 +535,9 @@ export default function VideoPlayer() {
             src={streamUrl}
             title={activePlayingItem.title}
             className="w-full h-full border-0"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen"
+            allow="autoplay; fullscreen; picture-in-picture"
             allowFullScreen
-            referrerPolicy="origin"
+            referrerPolicy="no-referrer"
             sandbox={getSandboxPolicy()}
             onLoad={() => setIsLoading(false)}
             onError={() => handleNextServer('Connection interrupted. Auto-switching stream server...')}
