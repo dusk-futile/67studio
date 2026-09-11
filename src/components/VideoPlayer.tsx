@@ -29,19 +29,31 @@ export default function VideoPlayer() {
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const hideTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const isCleanExitRef = useRef(false);
 
-  // Relentless Automatic Sandbox & Anti-Redirect Engine
+  // Anti-Redirect and Host Window Shield Engine
   useEffect(() => {
     if (!activePlayingItem) return;
 
-    // 1. Intercept any programmatic window.open / popup attempts on the parent window
+    isCleanExitRef.current = false;
+
+    // 1. Intercept programmatic popup / new-tab window.open attempts on the parent window
     const originalOpen = window.open;
     window.open = function (...args: any[]) {
-      console.warn('[67studio Shield] Relentlessly blocked ad popup attempt:', args);
+      console.warn('[67studio Shield] Prevented ad popup attempt:', args);
       return null;
     };
 
-    // 2. Prevent window defocus / popunder background tab stealing
+    // 2. Prevent uninvited top-level redirects away from 67studio
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (!isCleanExitRef.current) {
+        e.preventDefault();
+        e.returnValue = '';
+        return '';
+      }
+    };
+
+    // 3. Prevent window defocus / popunder tab stealing
     const handleBlur = () => {
       setTimeout(() => {
         if (document.activeElement?.tagName !== 'IFRAME') {
@@ -50,10 +62,12 @@ export default function VideoPlayer() {
       }, 100);
     };
 
+    window.addEventListener('beforeunload', handleBeforeUnload);
     window.addEventListener('blur', handleBlur);
 
     return () => {
       window.open = originalOpen;
+      window.removeEventListener('beforeunload', handleBeforeUnload);
       window.removeEventListener('blur', handleBlur);
     };
   }, [activePlayingItem]);
@@ -91,12 +105,22 @@ export default function VideoPlayer() {
     }, 2500);
   };
 
+  // Clean exit helper to prevent beforeunload prompts when intentionally closing player
+  const handleCleanExit = (e?: React.MouseEvent) => {
+    if (e) {
+      e.stopPropagation();
+      e.preventDefault();
+    }
+    isCleanExitRef.current = true;
+    stopMedia();
+  };
+
   // Keyboard navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!activePlayingItem) return;
       if (e.key === 'Escape') {
-        stopMedia();
+        handleCleanExit();
       } else if (e.key === 'f') {
         toggleFullscreen();
       }
@@ -169,7 +193,7 @@ export default function VideoPlayer() {
     (activeServer === 'trailer' && !!youtubeKey);
 
   const serverOptions: Array<{ id: ServerType; label: string }> = [
-    { id: 'server1', label: 'Server 1 (VidLink HD - Auto Autoplay)' },
+    { id: 'server1', label: 'Server 1 (VidLink HD)' },
     { id: 'server2', label: 'Server 2 (VidSrc Stream)' },
     { id: 'server3', label: 'Server 3 (AutoEmbed)' },
     { id: 'server4', label: 'Server 4 (2Embed)' },
@@ -193,10 +217,7 @@ export default function VideoPlayer() {
       >
         <div className="flex items-center space-x-3 sm:space-x-4">
           <button
-            onClick={(e) => {
-              e.stopPropagation();
-              stopMedia();
-            }}
+            onClick={handleCleanExit}
             className="flex items-center space-x-2 text-white hover:text-netflix-red transition-all px-3 py-1.5 rounded-full hover:bg-white/10 bg-black/60 backdrop-blur-md border border-white/20 shadow-lg group"
             aria-label="Back to Browse"
             title="Back to Browse (Esc)"
@@ -218,15 +239,15 @@ export default function VideoPlayer() {
           </div>
         </div>
 
-        {/* Discreet Toolbar: Sandbox Badge + TV Episode + Server Switcher + Fullscreen */}
+        {/* Discreet Toolbar: Stream Badge + TV Episode + Server Switcher + Fullscreen */}
         <div className="flex items-center space-x-2 sm:space-x-3 text-xs">
-          {/* Relentless Sandbox Indicator Badge */}
+          {/* Stream Protection Badge */}
           <div
-            className="hidden sm:flex items-center space-x-1.5 px-2.5 py-1 rounded bg-green-500/10 border border-green-500/30 text-green-400 text-[11px] font-semibold tracking-wide backdrop-blur-sm shadow-sm select-none"
-            title="Relentless Sandbox Active: All popups, ad redirects, and tab hijackers are automatically blocked"
+            className="hidden sm:flex items-center space-x-1.5 px-2.5 py-1 rounded bg-netflix-red/10 border border-netflix-red/30 text-white text-[11px] font-semibold tracking-wide backdrop-blur-sm shadow-sm select-none"
+            title="Clean Streaming Active"
           >
-            <ShieldCheck className="w-3.5 h-3.5 text-green-400" />
-            <span>Relentless Sandbox</span>
+            <ShieldCheck className="w-3.5 h-3.5 text-netflix-red" />
+            <span>Clean Stream</span>
           </div>
           {/* TV Episode Selector */}
           {isTv && (
@@ -339,7 +360,6 @@ export default function VideoPlayer() {
             src={streamUrl}
             title={activePlayingItem.title}
             className="w-full h-full border-0"
-            sandbox="allow-scripts allow-same-origin allow-forms allow-presentation"
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen"
             allowFullScreen
             referrerPolicy="origin"
