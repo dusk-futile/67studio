@@ -52,7 +52,7 @@ export default function ContentRow({ id, title, items, isTop10 = false }: Conten
         <button
           onClick={() => handleScroll('left')}
           aria-label="Scroll Left"
-          className={`absolute left-0 top-0 bottom-0 z-30 w-10 md:w-14 bg-black/60 hover:bg-black/85 flex items-center justify-center text-white opacity-0 group-hover/row:opacity-100 transition-all duration-300 backdrop-blur-xs ${
+          className={`absolute left-0 top-0 bottom-0 z-30 w-10 md:w-14 bg-black/60 hover:bg-black/90 flex items-center justify-center text-white opacity-0 group-hover/row:opacity-100 transition-all duration-300 backdrop-blur-xs ${
             !isMoved ? 'hidden' : 'flex'
           }`}
         >
@@ -70,15 +70,15 @@ export default function ContentRow({ id, title, items, isTop10 = false }: Conten
                 <div
                   key={item.id}
                   onClick={() => openDetailModal(item)}
-                  className="flex-shrink-0 flex items-center cursor-pointer group/top10 transition-transform duration-300 hover:scale-105"
+                  className="flex-shrink-0 flex items-center cursor-pointer group/top10 transition-transform duration-300 hover:scale-105 select-none"
                 >
-                  {/* Big Stylized Rank Number 1-10 */}
+                  {/* Big Stylized Outline Rank Number 1-10 */}
                   <div className="top10-number text-7xl sm:text-8xl md:text-9xl font-black select-none -mr-4 sm:-mr-6 z-10">
                     {index + 1}
                   </div>
 
                   {/* Vertical Poster Card */}
-                  <div className="w-28 sm:w-36 md:w-44 aspect-[2/3] rounded-sm overflow-hidden bg-netflix-card relative shadow-xl border border-white/5">
+                  <div className="w-28 sm:w-36 md:w-44 aspect-[2/3] rounded-sm overflow-hidden bg-[#0d0d0d] relative shadow-2xl border border-white/10">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={item.posterUrl}
@@ -86,7 +86,7 @@ export default function ContentRow({ id, title, items, isTop10 = false }: Conten
                       className="w-full h-full object-cover group-hover/top10:brightness-110 transition-all duration-300"
                       loading="lazy"
                     />
-                    <div className="absolute inset-x-0 bottom-0 p-1.5 bg-gradient-to-t from-black/90 to-transparent">
+                    <div className="absolute inset-x-0 bottom-0 p-1.5 bg-gradient-to-t from-black/95 to-transparent">
                       <p className="text-[11px] font-semibold text-white truncate text-center">
                         {item.title}
                       </p>
@@ -111,7 +111,7 @@ export default function ContentRow({ id, title, items, isTop10 = false }: Conten
         <button
           onClick={() => handleScroll('right')}
           aria-label="Scroll Right"
-          className="absolute right-0 top-0 bottom-0 z-30 w-10 md:w-14 bg-black/60 hover:bg-black/85 flex items-center justify-center text-white opacity-0 group-hover/row:opacity-100 transition-all duration-300 backdrop-blur-xs"
+          className="absolute right-0 top-0 bottom-0 z-30 w-10 md:w-14 bg-black/60 hover:bg-black/90 flex items-center justify-center text-white opacity-0 group-hover/row:opacity-100 transition-all duration-300 backdrop-blur-xs"
         >
           <ChevronRight className="w-8 h-8 transition-transform group-hover/row:scale-125" />
         </button>

@@ -21,7 +21,7 @@ export default function HoverCard({ media, index, totalInView = 5 }: HoverCardPr
 
   const inList = isInMyList(media.id);
 
-  // Determine transform-origin based on card position in row to avoid clipping screen edges
+  // Netflix origin calculation to avoid clipping viewport edges
   const getOriginClass = () => {
     if (index % totalInView === 0) return 'origin-left';
     if ((index + 1) % totalInView === 0) return 'origin-right';
@@ -31,7 +31,7 @@ export default function HoverCard({ media, index, totalInView = 5 }: HoverCardPr
   const handleMouseEnter = () => {
     hoverTimerRef.current = setTimeout(() => {
       setIsHovered(true);
-    }, 320); // 320ms intentional Netflix delay
+    }, 300); // 300ms Netflix signature hover delay
   };
 
   const handleMouseLeave = () => {
@@ -60,14 +60,16 @@ export default function HoverCard({ media, index, totalInView = 5 }: HoverCardPr
     <div
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
-      className={`relative flex-shrink-0 w-48 sm:w-60 md:w-72 aspect-video rounded-sm transition-all duration-300 cursor-pointer ${
-        isHovered ? `z-40 scale-[1.35] shadow-[0_12px_24px_rgba(0,0,0,0.85)] ${getOriginClass()}` : 'z-10'
+      className={`relative flex-shrink-0 w-48 sm:w-60 md:w-72 aspect-video rounded-sm transition-all duration-300 ease-out cursor-pointer select-none ${
+        isHovered
+          ? `z-50 scale-[1.38] shadow-[0_20px_35px_rgba(0,0,0,0.98)] ${getOriginClass()}`
+          : 'z-10'
       }`}
     >
-      {/* Base Card Poster / Thumbnail */}
+      {/* Base Card Poster */}
       <div
         onClick={() => openDetailModal(media)}
-        className="w-full h-full rounded-sm overflow-hidden bg-netflix-card relative"
+        className="w-full h-full rounded-sm overflow-hidden bg-[#0d0d0d] border border-white/5 relative"
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
@@ -77,9 +79,9 @@ export default function HoverCard({ media, index, totalInView = 5 }: HoverCardPr
           loading="lazy"
         />
 
-        {/* Title overlay in base state if image has no text */}
-        <div className="absolute inset-x-0 bottom-0 p-2 bg-gradient-to-t from-black/80 via-black/30 to-transparent">
-          <p className="text-white text-xs sm:text-sm font-semibold truncate drop-shadow">
+        {/* Title overlay in base state */}
+        <div className="absolute inset-x-0 bottom-0 p-2.5 bg-gradient-to-t from-black/90 via-black/40 to-transparent">
+          <p className="text-white text-xs sm:text-sm font-semibold truncate drop-shadow-md">
             {media.title}
           </p>
         </div>
@@ -101,10 +103,10 @@ export default function HoverCard({ media, index, totalInView = 5 }: HoverCardPr
         )}
       </div>
 
-      {/* Expanded Hover Drawer Details */}
+      {/* Expanded Hover Detail Drawer */}
       {isHovered && (
-        <div className="bg-netflix-cardElevated border border-neutral-800 rounded-b-sm p-3 shadow-2xl space-y-2 text-white animate-in fade-in zoom-in-95 duration-200">
-          {/* Quick Actions Row */}
+        <div className="bg-[#121212] border-x border-b border-white/10 rounded-b-sm p-3 shadow-2xl space-y-2.5 text-white animate-in fade-in duration-200">
+          {/* Quick Actions Line */}
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
               {/* Play Button */}
@@ -114,7 +116,7 @@ export default function HoverCard({ media, index, totalInView = 5 }: HoverCardPr
                   playMedia(media);
                 }}
                 title="Play"
-                className="w-8 h-8 rounded-full bg-white hover:bg-neutral-200 text-black flex items-center justify-center transition-transform hover:scale-110 active:scale-95"
+                className="w-8 h-8 rounded-full bg-white hover:bg-neutral-200 text-black flex items-center justify-center transition-transform hover:scale-110 active:scale-95 shadow-md"
               >
                 <Play className="w-4 h-4 fill-current ml-0.5" />
               </button>
@@ -126,7 +128,7 @@ export default function HoverCard({ media, index, totalInView = 5 }: HoverCardPr
                   toggleMyList(media);
                 }}
                 title={inList ? 'Remove from My List' : 'Add to My List'}
-                className="w-8 h-8 rounded-full border-2 border-neutral-400 hover:border-white text-white flex items-center justify-center transition-all hover:scale-110 active:scale-95"
+                className="w-8 h-8 rounded-full border-2 border-neutral-400 hover:border-white text-white flex items-center justify-center transition-all hover:scale-110 active:scale-95 bg-black/40"
               >
                 {inList ? (
                   <Check className="w-4 h-4 text-netflix-red font-bold" />
@@ -143,7 +145,7 @@ export default function HoverCard({ media, index, totalInView = 5 }: HoverCardPr
                 }}
                 title="I like this"
                 className={`w-8 h-8 rounded-full border-2 transition-all hover:scale-110 active:scale-95 flex items-center justify-center ${
-                  isLiked ? 'border-white bg-white/20 text-white' : 'border-neutral-400 hover:border-white text-white'
+                  isLiked ? 'border-white bg-white/20 text-white' : 'border-neutral-400 hover:border-white text-white bg-black/40'
                 }`}
               >
                 <ThumbsUp className="w-3.5 h-3.5" />
@@ -157,7 +159,7 @@ export default function HoverCard({ media, index, totalInView = 5 }: HoverCardPr
                 openDetailModal(media);
               }}
               title="More Info"
-              className="w-8 h-8 rounded-full border-2 border-neutral-400 hover:border-white text-white flex items-center justify-center transition-all hover:scale-110 active:scale-95"
+              className="w-8 h-8 rounded-full border-2 border-neutral-400 hover:border-white text-white flex items-center justify-center transition-all hover:scale-110 active:scale-95 bg-black/40"
             >
               <ChevronDown className="w-4 h-4" />
             </button>
@@ -171,13 +173,13 @@ export default function HoverCard({ media, index, totalInView = 5 }: HoverCardPr
             <span className="border border-neutral-600 px-1 py-0.5 rounded text-[10px] text-neutral-300">
               {media.maturityRating}
             </span>
-            <span className="text-neutral-400">{media.duration}</span>
+            <span className="text-neutral-300">{media.duration}</span>
             <span className="border border-neutral-700 px-1 py-0.5 rounded text-[9px] text-neutral-400">
               {media.quality}
             </span>
           </div>
 
-          {/* Genre Pills */}
+          {/* Genre Bullet Pills */}
           <div className="flex items-center flex-wrap gap-1 text-[10px] text-neutral-300 font-medium">
             {media.genres.slice(0, 3).map((genre, i) => (
               <span key={genre} className="flex items-center">

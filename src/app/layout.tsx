@@ -13,8 +13,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className="dark">
-      <body className="bg-netflix-black text-white min-h-screen selection:bg-netflix-red selection:text-white">
+    <html lang="en" className="dark bg-black">
+      <body className="bg-black text-white min-h-screen selection:bg-netflix-red selection:text-white antialiased">
         <AppProvider>{children}</AppProvider>
       </body>
     </html>

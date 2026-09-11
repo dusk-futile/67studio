@@ -9,49 +9,68 @@ import VideoPlayer from '../components/VideoPlayer';
 import SearchOverlay from '../components/SearchOverlay';
 import Footer from '../components/Footer';
 import { useApp } from '../context/AppContext';
-import { BILLBOARD_ITEM, CATEGORY_ROWS, ALL_MEDIA_ITEMS } from '../services/mockData';
-import { MediaItem } from '../types/media';
+import { getBillboardMedia, getContentRows } from '../services/mediaService';
+import { BILLBOARD_ITEM, CATEGORY_ROWS } from '../services/mockData';
+import { MediaItem, CategoryRow } from '../types/media';
 
 export default function Home() {
   const { searchQuery, activeNav, myList } = useApp();
   const [billboardItem, setBillboardItem] = useState<MediaItem>(BILLBOARD_ITEM);
+  const [contentRows, setContentRows] = useState<CategoryRow[]>(CATEGORY_ROWS);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Dynamic content filtering based on active nav selection
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadData() {
+      try {
+        const [billboard, rows] = await Promise.all([
+          getBillboardMedia(),
+          getContentRows(),
+        ]);
+        if (isMounted) {
+          setBillboardItem(billboard);
+          setContentRows(rows);
+          setIsLoading(false);
+        }
+      } catch (err) {
+        console.warn('Failed to load live TMDB rows, using fallback:', err);
+        if (isMounted) setIsLoading(false);
+      }
+    }
+
+    loadData();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // Filter rows based on active nav selection
   const getFilteredRows = () => {
     if (activeNav === 'TV Shows') {
-      const tvItems = ALL_MEDIA_ITEMS.filter((i) => i.type === 'tv');
-      return [
-        { id: 'tv-trending', title: 'Trending TV Series', items: tvItems },
-        { id: 'tv-top10', title: 'Top 10 TV Shows Today', isTop10: true, items: tvItems },
-        { id: 'tv-dramas', title: 'Binge-Worthy TV Dramas', items: tvItems.slice().reverse() },
-      ];
+      return contentRows.filter((r) =>
+        r.id.includes('tv') || r.title.toLowerCase().includes('tv') || r.title.toLowerCase().includes('series')
+      );
     }
 
     if (activeNav === 'Movies') {
-      const movieItems = ALL_MEDIA_ITEMS.filter((i) => i.type === 'movie');
-      return [
-        { id: 'movies-trending', title: 'Blockbuster Movies', items: movieItems },
-        { id: 'movies-top10', title: 'Top 10 Movies Today', isTop10: true, items: movieItems },
-        { id: 'movies-action', title: 'Adrenaline & Action Movies', items: movieItems.slice().reverse() },
-      ];
+      return contentRows.filter((r) =>
+        !r.id.includes('tv') && !r.title.toLowerCase().includes('series')
+      );
     }
 
     if (activeNav === 'New & Popular') {
-      return [
-        { id: 'new-top10', title: 'Top 10 Today', isTop10: true, items: ALL_MEDIA_ITEMS.slice(0, 10) },
-        CATEGORY_ROWS[0],
-        CATEGORY_ROWS[1],
-      ];
+      return contentRows.filter((r) => r.isTop10 || r.id === 'trending-now');
     }
 
-    // Default 'Home'
-    return CATEGORY_ROWS;
+    return contentRows;
   };
 
   const currentRows = getFilteredRows();
 
   return (
-    <main className="relative min-h-screen bg-netflix-black overflow-x-hidden selection:bg-netflix-red selection:text-white">
+    <main className="relative min-h-screen bg-black text-white overflow-x-hidden selection:bg-netflix-red selection:text-white">
       {/* Global Sticky Scrim Navbar */}
       <Navbar />
 
@@ -59,11 +78,11 @@ export default function Home() {
       {searchQuery.trim() ? (
         <SearchOverlay />
       ) : activeNav === 'My List' ? (
-        <div className="pt-28 pb-20 px-4 md:px-12 min-h-[70vh]">
+        <div className="pt-28 pb-20 px-4 md:px-12 min-h-[70vh] bg-black">
           <h1 className="text-2xl sm:text-3xl font-bold text-white mb-6">My List</h1>
           {myList.length > 0 ? (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-              {myList.map((item, idx) => (
+              {myList.map((item) => (
                 <div key={item.id} className="relative group">
                   <ContentRow
                     id={`my-list-single-${item.id}`}
@@ -74,10 +93,10 @@ export default function Home() {
               ))}
             </div>
           ) : (
-            <div className="text-center py-20 text-neutral-400 space-y-3">
-              <p className="text-lg">You haven&apos;t added any titles to your list yet.</p>
-              <p className="text-xs text-neutral-500 max-w-sm mx-auto">
-                Explore movies and TV shows and click the &ldquo;+&rdquo; button to add them here for quick access.
+            <div className="text-center py-24 text-neutral-400 space-y-3">
+              <p className="text-lg text-white">You haven&apos;t added any titles to your list yet.</p>
+              <p className="text-xs text-neutral-400 max-w-sm mx-auto">
+                Explore movies and TV series and click the &ldquo;+&rdquo; icon to save them here for instant access.
               </p>
             </div>
           )}
@@ -88,7 +107,7 @@ export default function Home() {
           <BillboardHero media={billboardItem} />
 
           {/* Content Shelves / Rows */}
-          <div className="relative z-20 -mt-16 sm:-mt-24 md:-mt-36 pb-16 space-y-6">
+          <div className="relative z-20 -mt-16 sm:-mt-24 md:-mt-36 pb-16 space-y-6 bg-gradient-to-b from-transparent via-black to-black">
             {/* Display persistent user "My List" row if items exist */}
             {myList.length > 0 && (
               <ContentRow

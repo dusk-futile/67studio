@@ -20,12 +20,14 @@ export interface Season {
 
 export interface MediaItem {
   id: string;
+  tmdbId?: number;
   title: string;
   overview: string;
   backdropUrl: string;
   posterUrl: string;
   trailerUrl: string;
   videoUrl: string;
+  youtubeKey?: string;
   matchScore: number;
   maturityRating: MaturityRating;
   advisoryTags?: string[];

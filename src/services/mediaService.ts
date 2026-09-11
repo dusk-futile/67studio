@@ -1,7 +1,11 @@
 import { MediaItem, CategoryRow } from '../types/media';
 import { BILLBOARD_ITEM, CATEGORY_ROWS, ALL_MEDIA_ITEMS } from './mockData';
 
-const API_BASE_URL = 'https://imdb.iamidiotareyoutoo.com';
+const TMDB_API_KEY = process.env.NEXT_PUBLIC_TMDB_API_KEY || '037d13c7206d0b6cf56e42cf8c42b902';
+const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
+const IMAGE_BASE_ORIGINAL = 'https://image.tmdb.org/t/p/original';
+const IMAGE_BASE_W780 = 'https://image.tmdb.org/t/p/w780';
+const IMAGE_BASE_W500 = 'https://image.tmdb.org/t/p/w500';
 
 const TRAILERS = [
   'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4',
@@ -12,92 +16,327 @@ const TRAILERS = [
   'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
 ];
 
+const GENRE_MAP: Record<number, string> = {
+  28: 'Action',
+  12: 'Adventure',
+  16: 'Animation',
+  35: 'Comedy',
+  80: 'Crime',
+  99: 'Documentary',
+  18: 'Drama',
+  10751: 'Family',
+  14: 'Fantasy',
+  36: 'History',
+  27: 'Horror',
+  10402: 'Music',
+  9648: 'Mystery',
+  10749: 'Romance',
+  878: 'Sci-Fi',
+  10770: 'TV Movie',
+  53: 'Thriller',
+  10752: 'War',
+  37: 'Western',
+  10759: 'Action & Adventure',
+  10762: 'Kids',
+  10765: 'Sci-Fi & Fantasy',
+};
+
 /**
- * Transforms external JustWatch/IMDb API responses into 67studio MediaItems
+ * Transforms a raw TMDB movie or TV show object into a 67studio MediaItem
  */
-function transformApiItem(item: any, index: number): MediaItem {
-  const poster = item.photo_url?.[0] || item.backdrops?.[0] || 'https://images.unsplash.com/photo-1536440136628-849c177e76a1?auto=format&fit=crop&w=600&q=80';
-  const backdrop = item.backdrops?.[0] || item.photo_url?.[0] || 'https://images.unsplash.com/photo-1509198397868-475647b2a1e5?auto=format&fit=crop&w=1920&q=80';
+export function transformTmdbItem(item: any, index: number = 0, isTv: boolean = false): MediaItem {
+  const isSeries = isTv || item.media_type === 'tv' || !!item.first_air_date;
+  const title = item.title || item.name || item.original_title || item.original_name || 'Untitled';
+  const releaseDate = item.release_date || item.first_air_date;
+  const year = releaseDate ? parseInt(releaseDate.substring(0, 4), 10) : 2025;
+
+  const backdrop = item.backdrop_path
+    ? `${IMAGE_BASE_ORIGINAL}${item.backdrop_path}`
+    : item.poster_path
+    ? `${IMAGE_BASE_W780}${item.poster_path}`
+    : 'https://images.unsplash.com/photo-1509198397868-475647b2a1e5?auto=format&fit=crop&w=1920&q=85';
+
+  const poster = item.poster_path
+    ? `${IMAGE_BASE_W780}${item.poster_path}`
+    : item.backdrop_path
+    ? `${IMAGE_BASE_W780}${item.backdrop_path}`
+    : 'https://images.unsplash.com/photo-1578632767115-351597cf2477?auto=format&fit=crop&w=600&q=80';
+
+  const matchScore = item.vote_average
+    ? Math.min(99, Math.max(75, Math.round(item.vote_average * 10)))
+    : 95;
+
+  const genres = item.genre_ids && Array.isArray(item.genre_ids) && item.genre_ids.length > 0
+    ? item.genre_ids.map((id: number) => GENRE_MAP[id] || 'Featured').slice(0, 3)
+    : ['Trending', isSeries ? 'TV Series' : 'Blockbuster'];
+
+  const maturityRatings: Array<'G' | 'PG' | 'PG-13' | '16+' | '18+' | 'TV-MA' | 'R'> = [
+    'PG-13',
+    '16+',
+    '18+',
+    'TV-MA',
+  ];
+  const maturityRating = maturityRatings[index % maturityRatings.length];
+
   const trailer = TRAILERS[index % TRAILERS.length];
 
-  const hours = item.runtime ? Math.floor(item.runtime / 60) : 1;
-  const mins = item.runtime ? item.runtime % 60 : 45;
-  const duration = item.type === 'SHOW' ? '1 Season' : `${hours}h ${mins}m`;
-
-  const match = item.jwRating ? Math.min(99, Math.round(item.jwRating * 100)) : 95;
-
   return {
-    id: item.id || `api-${item.imdbId || index}`,
-    title: item.title || 'Untitled Feature',
-    overview: item.tomatoMeter
-      ? `Rated ${item.tomatoMeter}% on Rotten Tomatoes. Stream this acclaimed title in high-definition 4K on 67studio.`
-      : `High-definition streaming title from Free Movie DB & JustWatch catalog. Now streaming on 67studio.`,
+    id: `tmdb-${item.id}`,
+    tmdbId: item.id,
+    title,
+    overview: item.overview || 'Stream this acclaimed title in high-definition 4K HDR on 67studio.',
     backdropUrl: backdrop,
     posterUrl: poster,
     trailerUrl: trailer,
     videoUrl: trailer,
-    matchScore: match,
-    maturityRating: item.type === 'SHOW' ? 'TV-MA' : '16+',
-    advisoryTags: ['High Definition', 'Dolby Audio'],
-    releaseYear: item.year || 2024,
-    duration: duration,
+    matchScore,
+    maturityRating,
+    advisoryTags: ['High Definition', 'Dolby Atmos', 'Spatial Audio'],
+    releaseYear: year,
+    duration: isSeries ? '2 Seasons' : '2h 14m',
     quality: '4K Ultra HD',
-    genres: ['Featured', item.type === 'SHOW' ? 'TV Series' : 'Blockbuster', 'Streaming'],
-    type: item.type === 'SHOW' ? 'tv' : 'movie',
-    cast: ['Official Cast', 'Global Production'],
+    genres,
+    type: isSeries ? 'tv' : 'movie',
+    cast: ['International Cast', 'Critically Acclaimed'],
     director: 'Acclaimed Director',
-    audioChannels: 'Spatial Audio 5.1',
-    subtitles: ['English [CC]', 'Spanish', 'French'],
+    audioChannels: 'Dolby Atmos 7.1',
+    subtitles: ['English [CC]', 'Spanish', 'French', 'Japanese', 'Arabic'],
+    isOriginal: index % 3 === 0,
+    seasons: isSeries
+      ? [
+          {
+            seasonNumber: 1,
+            title: 'Season 1',
+            episodes: [
+              {
+                id: `ep-${item.id}-1`,
+                episodeNumber: 1,
+                title: 'Pilot Episode',
+                overview: item.overview || 'The journey begins as fateful events set unprecedented stakes in motion.',
+                duration: '54m',
+                thumbnailUrl: backdrop,
+                videoUrl: trailer,
+                progressPercent: 40,
+              },
+              {
+                id: `ep-${item.id}-2`,
+                episodeNumber: 2,
+                title: 'Convergence',
+                overview: 'Confronting mounting revelations, unforeseen alliances are tested under intense pressure.',
+                duration: '48m',
+                thumbnailUrl: poster,
+                videoUrl: trailer,
+              },
+            ],
+          },
+        ]
+      : undefined,
   };
 }
 
-export async function getBillboardMedia(): Promise<MediaItem> {
-  return BILLBOARD_ITEM;
-}
-
-export async function getContentRows(): Promise<CategoryRow[]> {
-  return CATEGORY_ROWS;
-}
-
-export async function getMediaById(id: string): Promise<MediaItem | undefined> {
-  const found = ALL_MEDIA_ITEMS.find((item) => item.id === id);
-  if (found) return found;
-
+/**
+ * Fetch video trailer key from TMDB for a specific title
+ */
+export async function getTmdbTrailerKey(tmdbId: number, type: 'movie' | 'tv'): Promise<string | undefined> {
+  try {
+    const res = await fetch(`${TMDB_BASE_URL}/${type}/${tmdbId}/videos?api_key=${TMDB_API_KEY}`);
+    if (res.ok) {
+      const data = await res.json();
+      const trailer = data.results?.find(
+        (v: any) => v.site === 'YouTube' && (v.type === 'Trailer' || v.type === 'Teaser')
+      );
+      return trailer?.key || data.results?.[0]?.key;
+    }
+  } catch (e) {
+    console.warn('Failed to fetch trailer key from TMDB:', e);
+  }
   return undefined;
 }
 
 /**
- * Live Search powered by Free Movie DB (JustWatch API) with seamless fallback
+ * Fetches the Billboard Hero media item from TMDB
  */
-export async function searchMedia(query: string): Promise<MediaItem[]> {
-  const normalized = query.trim().toLowerCase();
-  if (!normalized) return [];
-
+export async function getBillboardMedia(): Promise<MediaItem> {
   try {
-    const res = await fetch(`${API_BASE_URL}/justwatch?q=${encodeURIComponent(query)}`);
+    const res = await fetch(`${TMDB_BASE_URL}/trending/movie/week?api_key=${TMDB_API_KEY}`);
     if (res.ok) {
       const data = await res.json();
-      if (data.ok && Array.isArray(data.description) && data.description.length > 0) {
-        return data.description.map((item: any, idx: number) => transformApiItem(item, idx));
+      if (data.results && data.results.length > 0) {
+        // Pick an item with a solid backdrop and overview
+        const topItem = data.results.find((i: any) => i.backdrop_path && i.overview && i.overview.length > 50) || data.results[0];
+        const media = transformTmdbItem(topItem, 0, false);
+        media.top10Rank = 1;
+        media.isOriginal = true;
+
+        // Try to get its official YouTube trailer
+        const trailerKey = await getTmdbTrailerKey(topItem.id, 'movie');
+        if (trailerKey) {
+          media.youtubeKey = trailerKey;
+        }
+        return media;
       }
     }
   } catch (error) {
-    console.warn('Free Movie DB API search fell back to internal catalog:', error);
+    console.warn('Error fetching TMDB billboard media, using local fallback:', error);
+  }
+  return BILLBOARD_ITEM;
+}
+
+/**
+ * Fetches all Netflix categorical content rows from TMDB
+ */
+export async function getContentRows(): Promise<CategoryRow[]> {
+  try {
+    const [
+      trendingRes,
+      topRatedRes,
+      popularTvRes,
+      actionRes,
+      scifiRes,
+      dramaRes,
+      animationRes,
+    ] = await Promise.all([
+      fetch(`${TMDB_BASE_URL}/trending/all/week?api_key=${TMDB_API_KEY}`),
+      fetch(`${TMDB_BASE_URL}/movie/top_rated?api_key=${TMDB_API_KEY}`),
+      fetch(`${TMDB_BASE_URL}/tv/popular?api_key=${TMDB_API_KEY}`),
+      fetch(`${TMDB_BASE_URL}/discover/movie?with_genres=28&sort_by=popularity.desc&api_key=${TMDB_API_KEY}`),
+      fetch(`${TMDB_BASE_URL}/discover/movie?with_genres=878&sort_by=popularity.desc&api_key=${TMDB_API_KEY}`),
+      fetch(`${TMDB_BASE_URL}/discover/movie?with_genres=18&sort_by=popularity.desc&api_key=${TMDB_API_KEY}`),
+      fetch(`${TMDB_BASE_URL}/discover/tv?with_genres=16&sort_by=popularity.desc&api_key=${TMDB_API_KEY}`),
+    ]);
+
+    const trendingData = trendingRes.ok ? await trendingRes.json() : null;
+    const topRatedData = topRatedRes.ok ? await topRatedRes.json() : null;
+    const popularTvData = popularTvRes.ok ? await popularTvRes.json() : null;
+    const actionData = actionRes.ok ? await actionRes.json() : null;
+    const scifiData = scifiRes.ok ? await scifiRes.json() : null;
+    const dramaData = dramaRes.ok ? await dramaRes.json() : null;
+    const animationData = animationRes.ok ? await animationRes.json() : null;
+
+    const rows: CategoryRow[] = [];
+
+    if (trendingData?.results?.length) {
+      rows.push({
+        id: 'trending-now',
+        title: 'Trending Now',
+        items: trendingData.results.slice(0, 12).map((item: any, idx: number) => transformTmdbItem(item, idx)),
+      });
+    }
+
+    if (topRatedData?.results?.length) {
+      rows.push({
+        id: 'top-10-movies',
+        title: 'Top 10 in Movies Today',
+        isTop10: true,
+        items: topRatedData.results.slice(0, 10).map((item: any, idx: number) => {
+          const trans = transformTmdbItem(item, idx, false);
+          trans.top10Rank = idx + 1;
+          return trans;
+        }),
+      });
+    }
+
+    if (popularTvData?.results?.length) {
+      rows.push({
+        id: 'popular-tv',
+        title: 'Popular TV Series',
+        items: popularTvData.results.slice(0, 12).map((item: any, idx: number) => transformTmdbItem(item, idx, true)),
+      });
+    }
+
+    if (actionData?.results?.length) {
+      rows.push({
+        id: 'action-movies',
+        title: 'Action & Adventure Blockbusters',
+        items: actionData.results.slice(0, 12).map((item: any, idx: number) => transformTmdbItem(item, idx, false)),
+      });
+    }
+
+    if (scifiData?.results?.length) {
+      rows.push({
+        id: 'scifi-movies',
+        title: 'Sci-Fi & Cyberpunk',
+        items: scifiData.results.slice(0, 12).map((item: any, idx: number) => transformTmdbItem(item, idx, false)),
+      });
+    }
+
+    if (dramaData?.results?.length) {
+      rows.push({
+        id: 'acclaimed-dramas',
+        title: 'Critically Acclaimed Dramas',
+        items: dramaData.results.slice(0, 12).map((item: any, idx: number) => transformTmdbItem(item, idx, false)),
+      });
+    }
+
+    if (animationData?.results?.length) {
+      rows.push({
+        id: 'animation-series',
+        title: 'Animation & Speculative Series',
+        items: animationData.results.slice(0, 12).map((item: any, idx: number) => transformTmdbItem(item, idx, true)),
+      });
+    }
+
+    if (rows.length > 0) return rows;
+  } catch (error) {
+    console.warn('Error fetching TMDB content rows, using local fallback:', error);
+  }
+
+  return CATEGORY_ROWS;
+}
+
+/**
+ * Searches TMDB for movies and TV shows matching user query
+ */
+export async function searchMedia(query: string): Promise<MediaItem[]> {
+  const normalized = query.trim();
+  if (!normalized) return [];
+
+  try {
+    const res = await fetch(
+      `${TMDB_BASE_URL}/search/multi?query=${encodeURIComponent(normalized)}&api_key=${TMDB_API_KEY}&include_adult=false`
+    );
+    if (res.ok) {
+      const data = await res.json();
+      if (data.results && data.results.length > 0) {
+        return data.results
+          .filter((item: any) => item.backdrop_path || item.poster_path)
+          .map((item: any, idx: number) => transformTmdbItem(item, idx, item.media_type === 'tv'));
+      }
+    }
+  } catch (error) {
+    console.warn('TMDB search error, falling back to local search:', error);
   }
 
   // Fallback to local catalog
   return ALL_MEDIA_ITEMS.filter((item) => {
-    const titleMatch = item.title.toLowerCase().includes(normalized);
-    const genreMatch = item.genres.some((g) => g.toLowerCase().includes(normalized));
-    const castMatch = item.cast.some((c) => c.toLowerCase().includes(normalized));
-    const directorMatch = item.director.toLowerCase().includes(normalized);
-    const overviewMatch = item.overview.toLowerCase().includes(normalized);
-
-    return titleMatch || genreMatch || castMatch || directorMatch || overviewMatch;
+    const titleMatch = item.title.toLowerCase().includes(normalized.toLowerCase());
+    const genreMatch = item.genres.some((g) => g.toLowerCase().includes(normalized.toLowerCase()));
+    const overviewMatch = item.overview.toLowerCase().includes(normalized.toLowerCase());
+    return titleMatch || genreMatch || overviewMatch;
   });
 }
 
+/**
+ * Gets similar media from TMDB or local catalog
+ */
 export async function getSimilarMedia(currentId: string): Promise<MediaItem[]> {
+  if (currentId.startsWith('tmdb-')) {
+    const rawId = currentId.replace('tmdb-', '');
+    try {
+      const res = await fetch(`${TMDB_BASE_URL}/movie/${rawId}/similar?api_key=${TMDB_API_KEY}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.results && data.results.length > 0) {
+          return data.results
+            .slice(0, 6)
+            .map((item: any, idx: number) => transformTmdbItem(item, idx, false));
+        }
+      }
+    } catch (e) {
+      console.warn('Could not fetch similar from TMDB:', e);
+    }
+  }
+
   const current = ALL_MEDIA_ITEMS.find((i) => i.id === currentId);
   if (!current) return ALL_MEDIA_ITEMS.slice(0, 6);
 

@@ -12,21 +12,17 @@ const config: Config = {
         netflix: {
           red: "#E50914",
           redHover: "#B81D24",
-          black: "#141414",
+          black: "#000000",         // Pure cinema pitch black
+          canvas: "#000000",
           deep: "#000000",
-          card: "#181818",
-          cardElevated: "#242424",
-          hover: "#2F2F2F",
+          card: "#121212",          // Clean dark card
+          cardElevated: "#181818",  // Elevated hover drawer
+          hover: "#222222",
           match: "#46D369",
           muted: "#808080",
-          secondary: "#A3A3A3",
-          border: "rgba(255, 255, 255, 0.15)",
+          secondary: "#B3B3B3",
+          border: "rgba(255, 255, 255, 0.12)",
         },
-      },
-      backgroundImage: {
-        "gradient-radial": "radial-gradient(var(--tw-gradient-stops))",
-        "gradient-conic":
-          "conic-gradient(from 180deg at 50% 50%, var(--tw-gradient-stops))",
       },
       fontFamily: {
         sans: [
